@@ -1,0 +1,9 @@
+**/node_modules
+**/.dart_tool
+**/build
+**/.git
+**/.env
+backend/uploads/*
+!backend/uploads/.gitkeep
+*.md
+!README.md
