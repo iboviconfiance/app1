@@ -101,6 +101,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
 
     final type = c['type'] ?? 'pdf';
     final isCached = courseProvider.isCourseFileCached(widget.id, type);
+    final isDownloading = courseProvider.isDownloading(widget.id);
 
     return Scaffold(
       appBar: AppBar(
@@ -117,44 +118,101 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(c['description'] ?? '', style: Theme.of(context).textTheme.bodyLarge),
+            Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant, width: 1),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      c['title'] ?? '',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      c['description'] ?? '',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black87),
+                    ),
+                  ],
+                ),
+              ),
+            ),
             const SizedBox(height: 16),
             if (type == 'video')
               AspectRatio(
                 aspectRatio: 16 / 9,
                 child: Container(
-                  decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(12)),
-                  child: const Center(child: Icon(Icons.play_circle_fill, size: 64)),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.black12),
+                  ),
+                  child: const Center(child: Icon(Icons.play_circle_fill, size: 64, color: Colors.black45)),
                 ),
               ),
             const SizedBox(height: 16),
-            if (isCached)
-              Row(
-                children: [
-                  const Icon(Icons.check_circle, color: Colors.green),
-                  const SizedBox(width: 8),
-                  const Text('Disponible hors-ligne', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
-                  const Spacer(),
-                  TextButton.icon(
-                    onPressed: () => _removeOffline(type),
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    label: const Text('Retirer', style: TextStyle(color: Colors.red)),
-                  ),
-                ],
-              ),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              child: isCached
+                  ? Row(
+                      key: const ValueKey('cached_info'),
+                      children: [
+                        const Icon(Icons.check_circle, color: Colors.green),
+                        const SizedBox(width: 8),
+                        const Text('Disponible hors-ligne', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                        const Spacer(),
+                        TextButton.icon(
+                          onPressed: () => _removeOffline(type),
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          label: const Text('Retirer', style: TextStyle(color: Colors.red)),
+                        ),
+                      ],
+                    )
+                  : const SizedBox.shrink(key: ValueKey('empty_cached_info')),
+            ),
             const Spacer(),
-            if (type == 'pdf')
-              FilledButton.icon(
-                onPressed: () => _downloadOrPlayOffline(c),
-                icon: Icon(isCached ? Icons.chrome_reader_mode : Icons.download),
-                label: Text(isCached ? 'Lire le PDF local' : 'Télécharger PDF'),
-              ),
-            if (type == 'video')
-              FilledButton.icon(
-                onPressed: () => _downloadOrPlayOffline(c),
-                icon: Icon(isCached ? Icons.play_arrow : Icons.download),
-                label: Text(isCached ? 'Lire la vidéo locale' : 'Télécharger la vidéo'),
-              ),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              transitionBuilder: (child, animation) {
+                return FadeTransition(
+                  opacity: animation,
+                  child: SizeTransition(
+                    sizeFactor: animation,
+                    axis: Axis.vertical,
+                    child: child,
+                  ),
+                );
+              },
+              child: isCached
+                  ? FilledButton.icon(
+                      key: const ValueKey('read_local'),
+                      onPressed: () => _downloadOrPlayOffline(c),
+                      icon: Icon(type == 'pdf' ? Icons.chrome_reader_mode : Icons.play_arrow),
+                      label: Text(type == 'pdf' ? 'Lire le PDF local' : 'Lire la vidéo locale'),
+                    )
+                  : isDownloading
+                      ? FilledButton.icon(
+                          key: const ValueKey('downloading'),
+                          onPressed: null,
+                          icon: const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white70),
+                          ),
+                          label: const Text('Téléchargement en cours...'),
+                        )
+                      : FilledButton.icon(
+                          key: const ValueKey('download_local'),
+                          onPressed: () => _downloadOrPlayOffline(c),
+                          icon: const Icon(Icons.download),
+                          label: Text(type == 'pdf' ? 'Télécharger PDF' : 'Télécharger la vidéo'),
+                        ),
+            ),
           ],
         ),
       ),

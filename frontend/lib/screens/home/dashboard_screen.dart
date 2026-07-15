@@ -42,10 +42,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final planName = subscription != null ? subscription['plan'] ?? 'gratuit' : 'gratuit';
     final endDateStr = subscription != null ? subscription['end_date'] : null;
 
+    final bgColor = isPremium ? theme.colorScheme.primaryContainer : theme.colorScheme.surfaceVariant;
+    final textColor = isPremium ? theme.colorScheme.onPrimaryContainer : theme.colorScheme.onSurfaceVariant;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFFE8F5E9), // Mint green background
+        color: bgColor,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
@@ -59,60 +62,61 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Abonnement actif',
+                    Text(
+                      isPremium ? 'ABONNEMENT ACTIF' : 'VERSION GRATUITE',
                       style: TextStyle(
-                        color: Color(0xFF2E7D32), // Green text
+                        color: isPremium ? theme.colorScheme.primary : theme.colorScheme.secondary,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12,
+                        letterSpacing: 1.1,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      isPremium
+                          ? (planName == 'individuel' ? 'Plan Individuel' : 'Plan Familial')
+                          : 'Accès Limité',
+                      style: TextStyle(
+                        color: textColor,
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        fontSize: 15,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       isPremium
-                          ? (planName == 'individuel' ? 'Individuel - 1 Mois' : planName.toUpperCase())
-                          : 'Individuel - 1 Mois',
-                      style: const TextStyle(
-                        color: Color(0xFF1E293B), // Dark text
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      isPremium
                           ? 'Expire le ${_formatDate(endDateStr)}'
-                          : 'Expire le 24/06/2025',
-                      style: const TextStyle(
-                        color: Color(0xFF64748B), // Grey text
+                          : 'Débloquez tout le catalogue de cours & examens',
+                      style: TextStyle(
+                        color: textColor.withOpacity(0.75),
                         fontSize: 12,
                       ),
                     ),
                   ],
                 ),
               ),
-              const Icon(
-                Icons.emoji_events_rounded,
-                color: Color(0xFF2E7D32),
+              Icon(
+                isPremium ? Icons.workspace_premium_rounded : Icons.star_border_rounded,
+                color: isPremium ? theme.colorScheme.primary : theme.colorScheme.secondary,
                 size: 28,
               ),
             ],
           ),
           const SizedBox(height: 16),
-          OutlinedButton(
+          ElevatedButton(
             onPressed: () => context.go('/subscription'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF1D4ED8),
-              backgroundColor: Colors.white,
-              side: const BorderSide(color: Color(0xFF1D4ED8), width: 1.0),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: theme.colorScheme.surface,
+              foregroundColor: theme.colorScheme.primary,
+              elevation: 0,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
             ),
-            child: const Text(
-              'Voir détails',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            child: Text(
+              isPremium ? 'Gérer mon abonnement' : 'Découvrir nos offres',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
             ),
           ),
         ],

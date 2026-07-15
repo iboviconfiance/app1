@@ -14,6 +14,9 @@ class CourseProvider extends ChangeNotifier {
   
   // Track offline cached status of courses
   Map<String, bool> _cachedStatus = {};
+  
+  // Track downloading status of courses
+  Map<String, bool> _downloadingStatus = {};
 
   CourseProvider(this._api);
 
@@ -26,6 +29,10 @@ class CourseProvider extends ChangeNotifier {
   bool isCourseFileCached(String courseId, String type) {
     final ext = type == 'video' ? 'mp4' : 'pdf';
     return _cachedStatus[courseId] ?? false;
+  }
+
+  bool isDownloading(String courseId) {
+    return _downloadingStatus[courseId] ?? false;
   }
 
   Future<void> checkCachedStatus(String courseId, String type) async {
@@ -136,6 +143,7 @@ class CourseProvider extends ChangeNotifier {
 
   Future<void> downloadForOffline(String courseId, String fileUrl, String type) async {
     final ext = type == 'video' ? 'mp4' : 'pdf';
+    _downloadingStatus[courseId] = true;
     _cachedStatus[courseId] = false;
     notifyListeners();
 
@@ -155,9 +163,12 @@ class CourseProvider extends ChangeNotifier {
       
       if (file != null) {
         _cachedStatus[courseId] = true;
-        notifyListeners();
       }
-    } catch (_) {}
+    } catch (_) {
+    } finally {
+      _downloadingStatus[courseId] = false;
+      notifyListeners();
+    }
   }
 
   Future<void> removeOfflineFile(String courseId, String type) async {
