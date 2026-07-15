@@ -17,7 +17,7 @@ class PaymentService {
       throw new Error('Plan invalide');
     }
 
-    const amount = this.subscriptionRepo.getPlanPrice(plan);
+    const amount = await this.subscriptionRepo.getPlanPrice(plan);
     const subscription = await this.subscriptionRepo.upgrade(userId, plan);
 
     const payment = await this.subscriptionRepo.createPayment({

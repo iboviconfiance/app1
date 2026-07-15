@@ -5,4 +5,10 @@ class AppConstants {
     'API_URL',
     defaultValue: '/api',
   );
+
+  /// Adresse absolue du serveur backend (pour mobile/téléchargements hors-ligne)
+  static const String backendBaseUrl = String.fromEnvironment(
+    'BACKEND_URL',
+    defaultValue: 'https://api.klasplus.cg',
+  );
 }

@@ -144,9 +144,11 @@ class CourseProvider extends ChangeNotifier {
       final res = await _api.get('/courses/$courseId/download');
       final path = res['data']['fileUrl'] ?? fileUrl;
       
-      final baseUrl = AppConstants.apiBaseUrl.endsWith('/api')
-          ? AppConstants.apiBaseUrl.substring(0, AppConstants.apiBaseUrl.length - 4)
-          : 'http://localhost:3000';
+      final baseUrl = AppConstants.apiBaseUrl.startsWith('http')
+          ? (AppConstants.apiBaseUrl.endsWith('/api')
+              ? AppConstants.apiBaseUrl.substring(0, AppConstants.apiBaseUrl.length - 4)
+              : AppConstants.apiBaseUrl)
+          : AppConstants.backendBaseUrl;
       final fullUrl = path.startsWith('http') ? path : '$baseUrl$path';
       
       final file = await CacheService.downloadAndCacheFile(courseId, fullUrl, ext);

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../providers/auth_provider.dart';
 import '../../config/constants.dart';
 
@@ -22,11 +23,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _avatarBase64;
   Uint8List? _avatarBytes;
   bool _saving = false;
+  Map<String, dynamic>? _appConfig;
 
   @override
   void initState() {
     super.initState();
     _loadUser();
+    _loadConfig();
+  }
+
+  Future<void> _loadConfig() async {
+    try {
+      final res = await context.read<AuthProvider>().api.get('/config');
+      if (mounted) {
+        setState(() {
+          _appConfig = res['data'];
+        });
+      }
+    } catch (_) {}
   }
 
   void _loadUser() {
@@ -976,6 +990,50 @@ class _ProfileScreenState extends State<ProfileScreen> {
             title: const Text('Hiérarchie scolaire'),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
             onTap: () => context.go('/school'),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'Besoin d\'aide ou d\'assistance ?',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1E293B),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Card(
+            margin: EdgeInsets.zero,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: const BorderSide(color: Color(0xFFE2E8F0), width: 1),
+            ),
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.chat_bubble_outline_rounded, color: Colors.green),
+                  title: const Text('Assistance WhatsApp'),
+                  subtitle: Text(_appConfig?['supportPhoneNumber'] ?? '+242 06 000 0000'),
+                  onTap: () async {
+                    final num = _appConfig?['supportPhoneNumber'] ?? '+242060000000';
+                    final cleanNum = num.replaceAll(' ', '').replaceAll('+', '');
+                    final uri = Uri.parse('https://wa.me/$cleanNum');
+                    if (await canLaunchUrl(uri)) await launchUrl(uri);
+                  },
+                ),
+                const Divider(height: 1, indent: 56, color: Color(0xFFE2E8F0)),
+                ListTile(
+                  leading: const Icon(Icons.mail_outline_rounded, color: Colors.blue),
+                  title: const Text('Support par Email'),
+                  subtitle: Text(_appConfig?['supportEmail'] ?? 'support@klasplus.cg'),
+                  onTap: () async {
+                    final email = _appConfig?['supportEmail'] ?? 'support@klasplus.cg';
+                    final uri = Uri.parse('mailto:$email?subject=Assistance KLAS%2B');
+                    if (await canLaunchUrl(uri)) await launchUrl(uri);
+                  },
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 28),
           OutlinedButton(

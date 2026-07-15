@@ -24,7 +24,7 @@ const subscribeValidation = [
 class SubscriptionController {
   async getPlans(req, res, next) {
     try {
-      const data = subscriptionRepo.getPlans();
+      const data = await subscriptionRepo.getPlans();
       res.json({ success: true, data });
     } catch (error) {
       next(error);

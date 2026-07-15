@@ -2,12 +2,6 @@ const pool = require('../database/pool');
 const Subscription = require('../../domain/entities/Subscription');
 const Payment = require('../../domain/entities/Payment');
 
-const PLAN_PRICES = {
-  gratuit: 0,
-  individuel: 5000,
-  familial: 12000,
-};
-
 class SubscriptionRepository {
   async getActiveByUser(userId) {
     const { rows } = await pool.query(
@@ -18,39 +12,52 @@ class SubscriptionRepository {
     return rows[0] ? new Subscription(rows[0]).toJSON() : null;
   }
 
-  async create(userId, plan) {
-    const maxMembers = plan === 'familial' ? 5 : 1;
-    const endDate = plan === 'gratuit'
-      ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-      : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+  async create(userId, planId) {
+    const { rows: planRows } = await pool.query(
+      'SELECT * FROM plans WHERE id = $1',
+      [planId]
+    );
+    const plan = planRows[0];
+    if (!plan) throw new Error('Plan invalide');
+
+    const maxMembers = plan.max_members;
+    const endDate = new Date(Date.now() + plan.duration_days * 24 * 60 * 60 * 1000);
 
     const { rows } = await pool.query(
       `INSERT INTO subscriptions (user_id, plan, status, end_date, max_members)
        VALUES ($1, $2, 'active', $3, $4) RETURNING *`,
-      [userId, plan, endDate, maxMembers]
+      [userId, planId, endDate, maxMembers]
     );
     return new Subscription(rows[0]).toJSON();
   }
 
-  async upgrade(userId, plan) {
+  async upgrade(userId, planId) {
     await pool.query(
       `UPDATE subscriptions SET status = 'cancelled', updated_at = NOW()
        WHERE user_id = $1 AND status = 'active'`,
       [userId]
     );
-    return this.create(userId, plan);
+    return this.create(userId, planId);
   }
 
-  getPlanPrice(plan) {
-    return PLAN_PRICES[plan] || 0;
+  async getPlanPrice(planId) {
+    const { rows } = await pool.query(
+      'SELECT price FROM plans WHERE id = $1',
+      [planId]
+    );
+    return rows[0] ? parseFloat(rows[0].price) : 0;
   }
 
-  getPlans() {
-    return [
-      { id: 'gratuit', name: 'Gratuit', price: 0, features: ['Accès limité aux cours', '5 exercices/mois', 'Publicités'] },
-      { id: 'individuel', name: 'Individuel', price: 5000, features: ['Accès illimité', 'Tous les exercices', 'Examens blancs', 'Sans publicité'] },
-      { id: 'familial', name: 'Familial', price: 12000, features: ['Jusqu\'à 5 comptes', 'Accès illimité', 'Tous les examens', 'Support prioritaire'] },
-    ];
+  async getPlans() {
+    const { rows } = await pool.query(
+      'SELECT * FROM plans ORDER BY price'
+    );
+    return rows.map(r => ({
+      id: r.id,
+      name: r.name,
+      price: parseFloat(r.price),
+      features: r.features
+    }));
   }
 
   async createPayment({ userId, subscriptionId, amount, method, phoneNumber }) {
