@@ -7,8 +7,12 @@ const subscriptionRepo = new SubscriptionRepository();
 class WebhookController {
   async handlePaymentWebhook(req, res, next) {
     try {
+      console.log(`[PAYMENT WEBHOOK RECEIVED] Time: ${new Date().toISOString()}`);
+      console.log(`[PAYMENT WEBHOOK HEADERS]`, JSON.stringify(req.headers));
+      console.log(`[PAYMENT WEBHOOK PAYLOAD]`, JSON.stringify(req.body));
+
       const signature = req.headers['x-signature'] || req.headers['x-pay-signature'];
-      const webhookSecret = process.env.WEBHOOK_SECRET;
+      const webhookSecret = config.payment.webhookSecret;
 
       // 1. Signature Verification (HMAC SHA256)
       if (webhookSecret && signature) {

@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:collection/collection.dart';
 import '../services/api_service.dart';
 import '../services/cache_service.dart';
 import '../config/constants.dart';
@@ -30,8 +31,10 @@ class CourseProvider extends ChangeNotifier {
   Future<void> checkCachedStatus(String courseId, String type) async {
     final ext = type == 'video' ? 'mp4' : 'pdf';
     final isCached = await CacheService.isFileCached(courseId, ext);
-    _cachedStatus[courseId] = isCached;
-    notifyListeners();
+    if (_cachedStatus[courseId] != isCached) {
+      _cachedStatus[courseId] = isCached;
+      notifyListeners();
+    }
   }
 
   Future<void> loadCourses({String? seriesId}) async {
@@ -45,17 +48,27 @@ class CourseProvider extends ChangeNotifier {
       await _api.getWithCache(
         path,
         onCacheHit: (cachedData) {
-          _courses = cachedData['data'] as List;
-          _loading = false;
-          notifyListeners();
+          final newCourses = cachedData['data'] as List;
+          final isSame = const DeepCollectionEquality().equals(_courses, newCourses);
+          if (!isSame) {
+            _courses = newCourses;
+            _loading = false;
+            notifyListeners();
+          }
         },
       );
       
       // Load from network
       final res = await _api.get(path);
-      _courses = res['data'] as List;
+      final newCourses = res['data'] as List;
+      final isSame = const DeepCollectionEquality().equals(_courses, newCourses);
       _loading = false;
-      notifyListeners();
+      if (!isSame) {
+        _courses = newCourses;
+        notifyListeners();
+      } else {
+        notifyListeners();
+      }
     } catch (e) {
       _error = e.toString();
       _loading = false;
@@ -74,20 +87,30 @@ class CourseProvider extends ChangeNotifier {
       // Check cached status
       final cachedData = await CacheService.getCachedJson(path);
       if (cachedData != null) {
-        _selectedCourse = cachedData['data'];
-        _loadingDetail = false;
-        notifyListeners();
+        final newDetail = cachedData['data'];
+        final isSame = const DeepCollectionEquality().equals(_selectedCourse, newDetail);
+        if (!isSame) {
+          _selectedCourse = newDetail;
+          _loadingDetail = false;
+          notifyListeners();
+        }
       }
 
       final res = await _api.get(path);
-      _selectedCourse = res['data'];
+      final newDetail = res['data'];
       await CacheService.cacheJson(path, res);
       
       // Update history progress on backend
       await _api.post('/courses/$courseId/progress', {'progressPercent': 10, 'lastPosition': 0});
       
+      final isSame = const DeepCollectionEquality().equals(_selectedCourse, newDetail);
       _loadingDetail = false;
-      notifyListeners();
+      if (!isSame) {
+        _selectedCourse = newDetail;
+        notifyListeners();
+      } else {
+        notifyListeners();
+      }
     } catch (e) {
       _error = e.toString();
       _loadingDetail = false;

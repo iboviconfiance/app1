@@ -85,6 +85,26 @@ class SubscriptionRepository {
     try {
       await client.query('BEGIN');
       
+      // 1. Lock the payment row using FOR UPDATE to serialize concurrent webhooks
+      const { rows: lockRows } = await client.query(
+        'SELECT * FROM payments WHERE id = $1 FOR UPDATE',
+        [paymentId]
+      );
+      
+      const currentPayment = lockRows[0];
+      if (!currentPayment) {
+        await client.query('ROLLBACK');
+        return null;
+      }
+      
+      // 2. If already processed, skip reprocessing
+      if (currentPayment.status === 'completed' || currentPayment.status === 'failed') {
+        console.log(`Payment ${paymentId} is already processed with status: ${currentPayment.status}. Skipping.`);
+        await client.query('COMMIT');
+        return new Payment(currentPayment).toJSON();
+      }
+
+      // 3. Update the payment
       const { rows: paymentRows } = await client.query(
         `UPDATE payments 
          SET status = $1, transaction_id = $2, updated_at = NOW()

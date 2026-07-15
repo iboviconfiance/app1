@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const morgan = require('morgan');
 const config = require('./config');
 const errorHandler = require('./presentation/middleware/errorHandler');
 
@@ -17,6 +18,9 @@ const webhookRoutes = require('./presentation/routes/webhookRoutes');
 
 function createApp() {
   const app = express();
+
+  // Logging requests
+  app.use(morgan(config.nodeEnv === 'production' ? 'combined' : 'dev'));
 
   const corsOrigin = config.nodeEnv === 'development'
     ? (origin, callback) => {

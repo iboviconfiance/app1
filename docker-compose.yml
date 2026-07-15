@@ -30,6 +30,11 @@ services:
       start_period: 10s
     networks:
       - klasplus-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # ---------------------------------------------------------------------------
   # Backend API (Node.js / Express / Sequelize)
@@ -66,6 +71,11 @@ services:
       start_period: 60s
     networks:
       - klasplus-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # ---------------------------------------------------------------------------
   # Frontend Flutter Web (Nginx + proxy API)
@@ -85,6 +95,11 @@ services:
         condition: service_healthy
     networks:
       - klasplus-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 # -----------------------------------------------------------------------------
 # Volumes persistants

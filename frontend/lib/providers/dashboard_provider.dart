@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:collection/collection.dart';
 import '../services/api_service.dart';
 
 class DashboardProvider extends ChangeNotifier {
@@ -25,17 +26,27 @@ class DashboardProvider extends ChangeNotifier {
       await _api.getWithCache(
         path,
         onCacheHit: (cachedData) {
-          _dashboardData = cachedData['data'];
-          _loading = false;
-          notifyListeners();
+          final newData = cachedData['data'];
+          final isSame = const DeepCollectionEquality().equals(_dashboardData, newData);
+          if (!isSame) {
+            _dashboardData = newData;
+            _loading = false;
+            notifyListeners();
+          }
         },
       );
 
       // 2. Fetch fresh network data
       final res = await _api.get(path);
-      _dashboardData = res['data'];
+      final newData = res['data'];
+      final isSame = const DeepCollectionEquality().equals(_dashboardData, newData);
       _loading = false;
-      notifyListeners();
+      if (!isSame) {
+        _dashboardData = newData;
+        notifyListeners();
+      } else {
+        notifyListeners();
+      }
     } catch (e) {
       _error = e.toString();
       _loading = false;
