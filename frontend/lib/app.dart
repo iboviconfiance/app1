@@ -73,6 +73,22 @@ class _KlasPlusAppState extends State<KlasPlusApp> {
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    
+    // Render a clean loading state while restoring session from SharedPreferences
+    if (!auth.initialized) {
+      return MaterialApp(
+        title: 'KLAS+',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme,
+        home: const Scaffold(
+          body: Center(
+            child: CircularProgressIndicator(),
+          ),
+        ),
+      );
+    }
+
     return MaterialApp.router(
       title: 'KLAS+',
       debugShowCheckedModeBanner: false,

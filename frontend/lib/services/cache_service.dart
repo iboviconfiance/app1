@@ -11,15 +11,27 @@ class CacheService {
   // 1. JSON Cache (cache-first, network-fallback)
   static Future<void> cacheJson(String key, Map<String, dynamic> data) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('$_jsonPrefix$key', jsonEncode(data));
+    final wrapper = {
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+      'data': data,
+    };
+    await prefs.setString('$_jsonPrefix$key', jsonEncode(wrapper));
   }
 
-  static Future<Map<String, dynamic>?> getCachedJson(String key) async {
+  static Future<Map<String, dynamic>?> getCachedJson(String key, {Duration? maxAge}) async {
     final prefs = await SharedPreferences.getInstance();
     final jsonStr = prefs.getString('$_jsonPrefix$key');
     if (jsonStr != null) {
       try {
-        return jsonDecode(jsonStr) as Map<String, dynamic>;
+        final wrapper = jsonDecode(jsonStr) as Map<String, dynamic>;
+        final timestamp = wrapper['timestamp'] as int?;
+        if (maxAge != null && timestamp != null) {
+          final age = DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(timestamp));
+          if (age > maxAge) {
+            return null; // Cache is expired
+          }
+        }
+        return wrapper['data'] as Map<String, dynamic>?;
       } catch (_) {
         return null;
       }
@@ -27,7 +39,7 @@ class CacheService {
     return null;
   }
 
-  // 2. Local File Cache (PDF / Video download for offline use)
+  // 2. Local File Cache (PDF / Video download with .tmp file safety to prevent corruption)
   static Future<String?> getCachedFilePath(String courseId, String fileExtension) async {
     if (kIsWeb) return null;
     try {
@@ -43,12 +55,26 @@ class CacheService {
   static Future<File?> downloadAndCacheFile(String courseId, String fileUrl, String fileExtension) async {
     if (kIsWeb) return null;
     try {
+      final directory = await getApplicationDocumentsDirectory();
+      final tmpFile = File('${directory.path}/course_$courseId.$fileExtension.tmp');
+      
+      // Clean up previous failed attempts
+      if (await tmpFile.exists()) {
+        await tmpFile.delete();
+      }
+
       final response = await http.get(Uri.parse(fileUrl));
       if (response.statusCode == 200) {
-        final directory = await getApplicationDocumentsDirectory();
-        final file = File('${directory.path}/course_$courseId.$fileExtension');
-        await file.writeAsBytes(response.bodyBytes);
-        return file;
+        // Write to temporary file
+        await tmpFile.writeAsBytes(response.bodyBytes);
+        
+        // Rename to final filename only when completely written
+        final finalFile = File('${directory.path}/course_$courseId.$fileExtension');
+        if (await finalFile.exists()) {
+          await finalFile.delete();
+        }
+        await tmpFile.rename(finalFile.path);
+        return finalFile;
       }
     } catch (_) {}
     return null;

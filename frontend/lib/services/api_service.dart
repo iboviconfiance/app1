@@ -21,7 +21,8 @@ class ApiService {
   Future<Map<String, dynamic>> getWithCache(String path, {String? customCacheKey, Function(Map<String, dynamic>)? onCacheHit}) async {
     final cacheKey = customCacheKey ?? path;
     
-    final cachedData = await CacheService.getCachedJson(cacheKey);
+    // Check cache with 2 hours TTL for instant load
+    final cachedData = await CacheService.getCachedJson(cacheKey, maxAge: const Duration(hours: 2));
     if (cachedData != null && onCacheHit != null) {
       onCacheHit(cachedData);
     }
@@ -32,8 +33,13 @@ class ApiService {
       await CacheService.cacheJson(cacheKey, data);
       return data;
     } catch (e) {
-      if (cachedData != null) {
-        return cachedData;
+      // On network failure, try to fall back to the stale cache (ignoring TTL)
+      final staleData = cachedData ?? await CacheService.getCachedJson(cacheKey);
+      if (staleData != null) {
+        if (cachedData == null && onCacheHit != null) {
+          onCacheHit(staleData);
+        }
+        return staleData;
       }
       rethrow;
     }
