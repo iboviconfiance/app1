@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../providers/admin_provider.dart';
 import '../../providers/auth_provider.dart';
 
@@ -44,18 +45,20 @@ class _AdminCoursesScreenState extends State<AdminCoursesScreen> {
     final isEdit = course != null;
     final titleCtrl = TextEditingController(text: course?['title'] ?? '');
     final descCtrl = TextEditingController(text: course?['description'] ?? '');
-    
-    // Auto-select type
     String selectedType = course?['type'] ?? 'pdf';
-    
-    final fileUrlCtrl = TextEditingController(text: course?['fileUrl'] ?? course?['file_url'] ?? '');
-    final videoUrlCtrl = TextEditingController(text: course?['videoUrl'] ?? course?['video_url'] ?? '');
-    final thumbnailUrlCtrl = TextEditingController(text: course?['thumbnailUrl'] ?? course?['thumbnail_url'] ?? '');
+
+    // URL states (utilisés si pas d'upload)
+    String fileUrl = course?['fileUrl'] ?? course?['file_url'] ?? '';
+    String videoUrl = course?['videoUrl'] ?? course?['video_url'] ?? '';
+    String thumbnailUrl = course?['thumbnailUrl'] ?? course?['thumbnail_url'] ?? '';
+
+    // Nom des fichiers sélectionnés (affichage)
+    String? pickedMainFileName;
+    String? pickedThumbFileName;
 
     final adminProv = context.read<AdminProvider>();
     final subjects = adminProv.subjects;
 
-    // Dropdown values
     String? selectedSubjectId = course?['subjectId'] ?? course?['subject_id'];
     if (selectedSubjectId != null && !subjects.any((s) => s['id'] == selectedSubjectId)) {
       selectedSubjectId = null;
@@ -84,9 +87,46 @@ class _AdminCoursesScreenState extends State<AdminCoursesScreen> {
 
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogCtx) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
+            Future<void> pickAndUploadFile({required bool isMainFile}) async {
+              final type = isMainFile
+                  ? (selectedType == 'pdf' ? FileType.custom : FileType.video)
+                  : FileType.image;
+              final exts = isMainFile
+                  ? (selectedType == 'pdf' ? ['pdf'] : ['mp4'])
+                  : ['jpg', 'jpeg', 'png', 'webp'];
+
+              final result = await FilePicker.platform.pickFiles(
+                type: type,
+                allowedExtensions: type == FileType.custom || type == FileType.image ? exts : null,
+                withData: true,
+              );
+              if (result == null || result.files.isEmpty) return;
+              final file = result.files.first;
+
+              final uploadType = isMainFile
+                  ? (selectedType == 'pdf' ? 'pdf' : 'video')
+                  : 'image';
+              final url = await adminProv.uploadFile(file: file, fileType: uploadType);
+              if (url != null) {
+                setDialogState(() {
+                  if (isMainFile) {
+                    if (selectedType == 'pdf') {
+                      fileUrl = url;
+                    } else {
+                      videoUrl = url;
+                    }
+                    pickedMainFileName = file.name;
+                  } else {
+                    thumbnailUrl = url;
+                    pickedThumbFileName = file.name;
+                  }
+                });
+              }
+            }
+
             return AlertDialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
               title: Text(isEdit ? 'Modifier le cours' : 'Ajouter un cours'),
@@ -95,11 +135,17 @@ class _AdminCoursesScreenState extends State<AdminCoursesScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    TextField(controller: titleCtrl, decoration: const InputDecoration(labelText: 'Titre du cours')),
+                    TextField(
+                      controller: titleCtrl,
+                      decoration: const InputDecoration(labelText: 'Titre du cours'),
+                    ),
                     const SizedBox(height: 12),
-                    TextField(controller: descCtrl, decoration: const InputDecoration(labelText: 'Description')),
+                    TextField(
+                      controller: descCtrl,
+                      decoration: const InputDecoration(labelText: 'Description'),
+                    ),
                     const SizedBox(height: 16),
-                    
+
                     // Type selector
                     const Text('Type de cours', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                     Row(
@@ -107,32 +153,77 @@ class _AdminCoursesScreenState extends State<AdminCoursesScreen> {
                         Radio<String>(
                           value: 'pdf',
                           groupValue: selectedType,
-                          onChanged: (val) => setDialogState(() => selectedType = val!),
+                          onChanged: (val) => setDialogState(() {
+                            selectedType = val!;
+                            pickedMainFileName = null;
+                          }),
                         ),
                         const Text('Document PDF'),
                         const SizedBox(width: 16),
                         Radio<String>(
                           value: 'video',
                           groupValue: selectedType,
-                          onChanged: (val) => setDialogState(() => selectedType = val!),
+                          onChanged: (val) => setDialogState(() {
+                            selectedType = val!;
+                            pickedMainFileName = null;
+                          }),
                         ),
                         const Text('Vidéo'),
                       ],
                     ),
-                    const SizedBox(height: 12),
-                    
-                    // Dynamic fields depending on type
-                    if (selectedType == 'pdf')
-                      TextField(controller: fileUrlCtrl, decoration: const InputDecoration(labelText: 'URL du fichier PDF (ex: /uploads/courses/file.pdf)'))
-                    else
-                      TextField(controller: videoUrlCtrl, decoration: const InputDecoration(labelText: 'URL de la vidéo (ex: https://example.com/video.mp4)')),
-                    const SizedBox(height: 12),
-                    
-                    // Thumbnail
-                    TextField(controller: thumbnailUrlCtrl, decoration: const InputDecoration(labelText: 'URL de l\'image de couverture (thumbnail)')),
+                    const SizedBox(height: 8),
+
+                    // Upload barre de progression
+                    Consumer<AdminProvider>(
+                      builder: (ctx, prov, _) {
+                        if (!prov.isUploading) return const SizedBox.shrink();
+                        return Column(
+                          children: [
+                            LinearProgressIndicator(
+                              value: prov.uploadProgress,
+                              backgroundColor: Colors.grey[200],
+                              color: const Color(0xFF2563EB),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Upload en cours… ${(prov.uploadProgress * 100).toStringAsFixed(0)}%',
+                              style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                            ),
+                            const SizedBox(height: 8),
+                          ],
+                        );
+                      },
+                    ),
+
+                    // Bouton upload fichier principal
+                    OutlinedButton.icon(
+                      onPressed: () => pickAndUploadFile(isMainFile: true),
+                      icon: Icon(selectedType == 'pdf'
+                          ? Icons.picture_as_pdf_rounded
+                          : Icons.video_file_rounded),
+                      label: Text(
+                        pickedMainFileName != null
+                            ? '✅ ${pickedMainFileName!}'
+                            : (selectedType == 'pdf' ? 'Choisir un PDF' : 'Choisir une vidéo MP4'),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Bouton upload thumbnail
+                    OutlinedButton.icon(
+                      onPressed: () => pickAndUploadFile(isMainFile: false),
+                      icon: const Icon(Icons.image_outlined),
+                      label: Text(
+                        pickedThumbFileName != null
+                            ? '✅ ${pickedThumbFileName!}'
+                            : 'Choisir une image de couverture',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                     const SizedBox(height: 16),
 
-                    // Dropdowns for subject, classroom, series
+                    // Dropdowns
                     if (subjects.isNotEmpty) ...[
                       DropdownButtonFormField<String>(
                         value: selectedSubjectId,
@@ -178,7 +269,6 @@ class _AdminCoursesScreenState extends State<AdminCoursesScreen> {
                       const SizedBox(height: 16),
                     ],
 
-                    // Premium Checkbox
                     CheckboxListTile(
                       title: const Text('Accès Premium Requis', style: TextStyle(fontSize: 14)),
                       value: isPremium,
@@ -196,20 +286,18 @@ class _AdminCoursesScreenState extends State<AdminCoursesScreen> {
                 FilledButton(
                   onPressed: () async {
                     if (titleCtrl.text.trim().isEmpty) return;
-                    
                     final body = {
                       'title': titleCtrl.text.trim(),
                       'description': descCtrl.text.trim(),
                       'type': selectedType,
-                      'fileUrl': selectedType == 'pdf' ? fileUrlCtrl.text.trim() : null,
-                      'videoUrl': selectedType == 'video' ? videoUrlCtrl.text.trim() : null,
-                      'thumbnailUrl': thumbnailUrlCtrl.text.trim().isNotEmpty ? thumbnailUrlCtrl.text.trim() : null,
+                      'fileUrl': selectedType == 'pdf' ? fileUrl : null,
+                      'videoUrl': selectedType == 'video' ? videoUrl : null,
+                      'thumbnailUrl': thumbnailUrl.isNotEmpty ? thumbnailUrl : null,
                       'subjectId': selectedSubjectId,
                       'classroomId': selectedClassroomId,
                       'seriesId': selectedSeriesId,
                       'isPremium': isPremium,
                     };
-                    
                     if (isEdit) {
                       await adminProv.updateCourse(course['id'], body);
                     } else {
@@ -232,7 +320,7 @@ class _AdminCoursesScreenState extends State<AdminCoursesScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Supprimer le cours ?'),
-        content: Text('Êtes-vous sûr de vouloir supprimer le cours "$name" ?'),
+        content: Text('Êtes-vous sûr de vouloir supprimer "$name" ?\nLe fichier sera définitivement supprimé du serveur.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annuler')),
           FilledButton(

@@ -1,7 +1,63 @@
 const pool = require('../../infrastructure/database/pool');
+const path = require('path');
+const fs = require('fs');
+const AnalyticsRepository = require('../../infrastructure/repositories/AnalyticsRepository');
+
+const analyticsRepo = new AnalyticsRepository();
+
+// Helper: supprimer un fichier physique depuis son URL publique (ex: /uploads/courses/pdf-uuid.pdf)
+function deleteFileByUrl(fileUrl) {
+  if (!fileUrl) return;
+  try {
+    // fileUrl ressemble à "/uploads/courses/pdf-abc.pdf"
+    const relativePath = fileUrl.startsWith('/') ? fileUrl.slice(1) : fileUrl;
+    const absolutePath = path.join(__dirname, '../../../../', relativePath);
+    if (fs.existsSync(absolutePath)) {
+      fs.unlinkSync(absolutePath);
+    }
+  } catch (err) {
+    console.warn('[AdminController] Impossible de supprimer le fichier:', err.message);
+  }
+}
 
 class AdminController {
-  // 1. Get overall administration stats
+  // ──────────────────────────────────────────────────────────────────────────
+  // 0. UPLOAD DE FICHIER
+  // ──────────────────────────────────────────────────────────────────────────
+
+  /**
+   * POST /api/admin/upload?fileType=pdf|video|image|exam
+   * Reçoit un fichier via multer (req.file) et renvoie son URL publique.
+   */
+  async uploadFile(req, res, next) {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ success: false, message: 'Aucun fichier reçu.' });
+      }
+
+      // Construire l'URL publique relative (servie par Nginx)
+      const subdir = req.file.destination.split('uploads/')[1] || 'courses';
+      const publicUrl = `/uploads/${subdir}/${req.file.filename}`;
+
+      return res.status(201).json({
+        success: true,
+        data: {
+          url: publicUrl,
+          filename: req.file.filename,
+          originalName: req.file.originalname,
+          size: req.file.size,
+          mimetype: req.file.mimetype,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // 1. STATS GLOBALES
+  // ──────────────────────────────────────────────────────────────────────────
+
   async getStats(req, res, next) {
     try {
       const statsQuery = `
@@ -9,7 +65,8 @@ class AdminController {
           (SELECT COUNT(*) FROM users) as total_users,
           (SELECT COUNT(*) FROM subscriptions WHERE status = 'active' AND plan != 'gratuit') as active_subscriptions,
           (SELECT COUNT(*) FROM courses) as total_courses,
-          (SELECT COUNT(*) FROM exercises) as total_exercises
+          (SELECT COUNT(*) FROM exercises) as total_exercises,
+          (SELECT COUNT(*) FROM exams) as total_exams
       `;
       const { rows } = await pool.query(statsQuery);
       res.json({ success: true, data: rows[0] });
@@ -18,7 +75,10 @@ class AdminController {
     }
   }
 
+  // ──────────────────────────────────────────────────────────────────────────
   // 2. SUBJECTS CRUD
+  // ──────────────────────────────────────────────────────────────────────────
+
   async getSubjects(req, res, next) {
     try {
       const { rows } = await pool.query('SELECT * FROM subjects ORDER BY name');
@@ -67,7 +127,10 @@ class AdminController {
     }
   }
 
+  // ──────────────────────────────────────────────────────────────────────────
   // 3. COURSES CRUD
+  // ──────────────────────────────────────────────────────────────────────────
+
   async getCourses(req, res, next) {
     try {
       const { rows } = await pool.query(`
@@ -119,13 +182,22 @@ class AdminController {
       const { id } = req.params;
       const { rows } = await pool.query('DELETE FROM courses WHERE id = $1 RETURNING *', [id]);
       if (rows.length === 0) return res.status(404).json({ success: false, message: 'Cours introuvable' });
+
+      // Nettoyage des fichiers physiques orphelins (Piège 4)
+      deleteFileByUrl(rows[0].file_url);
+      deleteFileByUrl(rows[0].video_url);
+      deleteFileByUrl(rows[0].thumbnail_url);
+
       res.json({ success: true, message: 'Cours supprimé avec succès', data: rows[0] });
     } catch (error) {
       next(error);
     }
   }
 
+  // ──────────────────────────────────────────────────────────────────────────
   // 4. EXERCISES / QCM CRUD
+  // ──────────────────────────────────────────────────────────────────────────
+
   async getExercises(req, res, next) {
     try {
       const { rows } = await pool.query(`
@@ -183,10 +255,13 @@ class AdminController {
     }
   }
 
+  // ──────────────────────────────────────────────────────────────────────────
   // 5. EXERCISE QUESTIONS CRUD
+  // ──────────────────────────────────────────────────────────────────────────
+
   async getQuestions(req, res, next) {
     try {
-      const { id } = req.params; // exercise_id
+      const { id } = req.params;
       const { rows } = await pool.query(
         'SELECT * FROM exercise_questions WHERE exercise_id = $1 ORDER BY order_index',
         [id]
@@ -199,7 +274,7 @@ class AdminController {
 
   async createQuestion(req, res, next) {
     try {
-      const { id } = req.params; // exercise_id
+      const { id } = req.params;
       const { questionText, options, correctAnswer, points, explanation, orderIndex } = req.body;
       const { rows } = await pool.query(
         `INSERT INTO exercise_questions (exercise_id, question_text, options, correct_answer, points, explanation, order_index)
@@ -240,7 +315,100 @@ class AdminController {
     }
   }
 
-  // 6. USERS MANAGEMENT
+  // ──────────────────────────────────────────────────────────────────────────
+  // 6. EXAMS / ANNALES CRUD
+  // ──────────────────────────────────────────────────────────────────────────
+
+  async getExams(req, res, next) {
+    try {
+      const { rows } = await pool.query(`
+        SELECT e.*, s.name as subject_name, ser.name as series_name, cl.name as classroom_name
+        FROM exams e
+        LEFT JOIN subjects s ON e.subject_id = s.id
+        LEFT JOIN series ser ON e.series_id = ser.id
+        LEFT JOIN classrooms cl ON e.classroom_id = cl.id
+        ORDER BY e.year DESC, e.created_at DESC
+      `);
+      res.json({ success: true, data: rows });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async createExam(req, res, next) {
+    try {
+      const {
+        title, description, type, subjectId, seriesId, classroomId,
+        durationMinutes, totalPoints, fileUrl, corrigePdfUrl, isPremium, year, serie
+      } = req.body;
+
+      const { rows } = await pool.query(
+        `INSERT INTO exams 
+          (title, description, type, subject_id, series_id, classroom_id, duration_minutes, total_points, file_url, corrige_pdf_url, is_premium, year, serie)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
+        [
+          title, description || '', type,
+          subjectId || null, seriesId || null, classroomId || null,
+          durationMinutes || 180, totalPoints || 100,
+          fileUrl || null, corrigePdfUrl || null,
+          isPremium !== false, year || null, serie || null
+        ]
+      );
+      res.status(201).json({ success: true, data: rows[0] });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async updateExam(req, res, next) {
+    try {
+      const { id } = req.params;
+      const {
+        title, description, type, subjectId, seriesId, classroomId,
+        durationMinutes, totalPoints, fileUrl, corrigePdfUrl, isPremium, year, serie
+      } = req.body;
+
+      const { rows } = await pool.query(
+        `UPDATE exams SET
+          title = $1, description = $2, type = $3, subject_id = $4, series_id = $5, classroom_id = $6,
+          duration_minutes = $7, total_points = $8, file_url = $9, corrige_pdf_url = $10,
+          is_premium = $11, year = $12, serie = $13
+         WHERE id = $14 RETURNING *`,
+        [
+          title, description || '', type,
+          subjectId || null, seriesId || null, classroomId || null,
+          durationMinutes || 180, totalPoints || 100,
+          fileUrl || null, corrigePdfUrl || null,
+          isPremium !== false, year || null, serie || null, id
+        ]
+      );
+      if (rows.length === 0) return res.status(404).json({ success: false, message: 'Examen introuvable' });
+      res.json({ success: true, data: rows[0] });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async deleteExam(req, res, next) {
+    try {
+      const { id } = req.params;
+      const { rows } = await pool.query('DELETE FROM exams WHERE id = $1 RETURNING *', [id]);
+      if (rows.length === 0) return res.status(404).json({ success: false, message: 'Examen introuvable' });
+
+      // Nettoyage des fichiers orphelins (Piège 4)
+      deleteFileByUrl(rows[0].file_url);
+      deleteFileByUrl(rows[0].corrige_pdf_url);
+
+      res.json({ success: true, message: 'Examen supprimé avec succès' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // 7. USERS MANAGEMENT
+  // ──────────────────────────────────────────────────────────────────────────
+
   async getUsers(req, res, next) {
     try {
       const { rows } = await pool.query(`
@@ -270,6 +438,39 @@ class AdminController {
       );
       if (rows.length === 0) return res.status(404).json({ success: false, message: 'Utilisateur introuvable' });
       res.json({ success: true, data: rows[0] });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // 8. ANALYTICS PROFESSEUR
+  // ──────────────────────────────────────────────────────────────────────────
+
+  async getAnalytics(req, res, next) {
+    try {
+      const { seriesId, classroomId, dateFrom } = req.query;
+      const filters = {
+        seriesId: seriesId || undefined,
+        classroomId: classroomId || undefined,
+        dateFrom: dateFrom ? new Date(dateFrom) : undefined,
+      };
+
+      // Toutes les requêtes en parallèle pour la performance
+      const [subjectPerformance, weakExercises, globalStats] = await Promise.all([
+        analyticsRepo.getSubjectPerformance(filters),
+        analyticsRepo.getWeakExercises({ ...filters, threshold: 50 }),
+        analyticsRepo.getGlobalStats(),
+      ]);
+
+      res.json({
+        success: true,
+        data: {
+          globalStats,
+          subjectPerformance,
+          weakExercises,
+        },
+      });
     } catch (error) {
       next(error);
     }

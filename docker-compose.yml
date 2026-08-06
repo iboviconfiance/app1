@@ -93,6 +93,10 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    # Volume partagé avec le backend pour que Nginx serve les fichiers
+    # uploadés directement (Range Requests 206 natifs pour la vidéo)
+    volumes:
+      - backend_uploads:/app/uploads:ro
     networks:
       - klasplus-network
     logging:

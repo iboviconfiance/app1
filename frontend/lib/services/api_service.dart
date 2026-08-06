@@ -8,6 +8,20 @@ class ApiService {
 
   void setToken(String? token) => _token = token;
 
+  /// Token JWT courant (peut être null si non connecté)
+  String? get token => _token;
+
+  /// Base URL du serveur (sans le suffixe /api) pour les uploads multipart
+  String get serverBaseUrl {
+    final api = AppConstants.apiBaseUrl; // ex: '/api' ou 'http://localhost:3000/api'
+    if (api.startsWith('http')) {
+      // Enlève le suffixe '/api' pour obtenir l'origine
+      return api.endsWith('/api') ? api.substring(0, api.length - 4) : api;
+    }
+    // En mode Docker/Nginx, l'URL est relative → on utilise l'origine de la page
+    return ''; // URL vide = même origine (Flutter Web)
+  }
+
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
         if (_token != null) 'Authorization': 'Bearer $_token',

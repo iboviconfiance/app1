@@ -23,6 +23,8 @@ import 'screens/admin/admin_courses_screen.dart';
 import 'screens/admin/admin_exercises_screen.dart';
 import 'screens/admin/admin_subjects_screen.dart';
 import 'screens/admin/admin_users_screen.dart';
+import 'screens/admin/admin_exams_screen.dart';
+import 'screens/admin/teacher_analytics_screen.dart';
 
 class KlasPlusApp extends StatefulWidget {
   const KlasPlusApp({super.key});
@@ -72,6 +74,8 @@ class _KlasPlusAppState extends State<KlasPlusApp> {
         GoRoute(path: '/admin/exercises', builder: (_, __) => const AdminExercisesScreen()),
         GoRoute(path: '/admin/subjects', builder: (_, __) => const AdminSubjectsScreen()),
         GoRoute(path: '/admin/users', builder: (_, __) => const AdminUsersScreen()),
+        GoRoute(path: '/admin/exams', builder: (_, __) => const AdminExamsScreen()),
+        GoRoute(path: '/admin/analytics', builder: (_, __) => const TeacherAnalyticsScreen()),
 
         ShellRoute(
           builder: (_, __, child) => MainShell(child: child),
