@@ -973,6 +973,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 : const Text('Enregistrer'),
           ),
           const SizedBox(height: 16),
+          if (user?['role'] == 'admin' || user?['role'] == 'teacher') ...[
+            ListTile(
+              leading: Icon(Icons.admin_panel_settings_rounded, color: theme.colorScheme.primary),
+              title: Text('Portail d\'Administration', style: TextStyle(fontWeight: FontWeight.bold, color: theme.colorScheme.primary)),
+              trailing: Icon(Icons.arrow_forward_ios, size: 16, color: theme.colorScheme.primary),
+              onTap: () => context.go('/admin'),
+            ),
+            const Divider(height: 1, color: Color(0xFFE2E8F0)),
+          ],
           ListTile(
             leading: const Icon(Icons.groups),
             title: const Text('Groupes de travail'),

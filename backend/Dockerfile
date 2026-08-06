@@ -29,7 +29,7 @@ RUN npm ci --omit=dev && npm install sequelize-cli --no-save && npm cache clean 
 COPY . .
 
 # Dossier uploads pour les fichiers PDF
-RUN mkdir -p uploads && chmod +x docker-entrypoint.sh
+RUN mkdir -p uploads && chmod +x docker-entrypoint.sh && sed -i 's/\r$//' docker-entrypoint.sh && chmod +x docker-entrypoint.sh
 
 ENV NODE_ENV=production
 ENV PORT=3000

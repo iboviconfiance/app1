@@ -18,6 +18,11 @@ import 'screens/exams/exams_screen.dart';
 import 'screens/subscription/subscription_screen.dart';
 import 'screens/profile/profile_screen.dart';
 import 'screens/work_groups/work_groups_screen.dart';
+import 'screens/admin/admin_dashboard_screen.dart';
+import 'screens/admin/admin_courses_screen.dart';
+import 'screens/admin/admin_exercises_screen.dart';
+import 'screens/admin/admin_subjects_screen.dart';
+import 'screens/admin/admin_users_screen.dart';
 
 class KlasPlusApp extends StatefulWidget {
   const KlasPlusApp({super.key});
@@ -40,11 +45,19 @@ class _KlasPlusAppState extends State<KlasPlusApp> {
         final loggedIn = auth.isAuthenticated;
         final authRoutes = ['/welcome', '/login', '/register', '/forgot-password'];
         
-        // Wait until AuthProvider loads its state from SharedPreferences
+        // Attendre que AuthProvider soit initialisé depuis SharedPreferences
         if (!auth.initialized) return null;
 
         if (!loggedIn && !authRoutes.contains(state.matchedLocation)) return '/welcome';
         if (loggedIn && authRoutes.contains(state.matchedLocation)) return '/dashboard';
+
+        // Étape 2 : Protection du Routeur (Flutter GoRouter)
+        if (state.matchedLocation.startsWith('/admin')) {
+          final role = auth.user?['role'];
+          if (role != 'admin' && role != 'teacher') {
+            return '/dashboard'; // Rediriger immédiatement les intrus vers l'accueil
+          }
+        }
         return null;
       },
       routes: [
@@ -52,6 +65,14 @@ class _KlasPlusAppState extends State<KlasPlusApp> {
         GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
         GoRoute(path: '/register', builder: (_, __) => const RegisterScreen()),
         GoRoute(path: '/forgot-password', builder: (_, __) => const ForgotPasswordScreen()),
+        
+        // Routes d'administration (hors ShellRoute élève pour un design propre et complet)
+        GoRoute(path: '/admin', builder: (_, __) => const AdminDashboardScreen()),
+        GoRoute(path: '/admin/courses', builder: (_, __) => const AdminCoursesScreen()),
+        GoRoute(path: '/admin/exercises', builder: (_, __) => const AdminExercisesScreen()),
+        GoRoute(path: '/admin/subjects', builder: (_, __) => const AdminSubjectsScreen()),
+        GoRoute(path: '/admin/users', builder: (_, __) => const AdminUsersScreen()),
+
         ShellRoute(
           builder: (_, __, child) => MainShell(child: child),
           routes: [

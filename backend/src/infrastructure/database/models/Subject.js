@@ -6,6 +6,7 @@ module.exports = (sequelize, DataTypes) => {
     name: { type: DataTypes.STRING(100), allowNull: false },
     description: DataTypes.TEXT,
     icon: DataTypes.STRING(50),
+    color: { type: DataTypes.STRING(20), defaultValue: '#2563EB' },
   }, { tableName: 'subjects', underscored: true, timestamps: true, createdAt: 'created_at', updatedAt: false });
 
   Subject.associate = (models) => {

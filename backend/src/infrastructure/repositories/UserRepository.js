@@ -24,11 +24,11 @@ class UserRepository {
     return rows[0] || null;
   }
 
-  async create({ nom, prenom, telephone, email, passwordHash, etablissement, classroomId, seriesId }) {
+  async create({ nom, prenom, telephone, email, passwordHash, etablissement, classroomId, seriesId, role }) {
     const { rows } = await pool.query(
-      `INSERT INTO users (nom, prenom, telephone, email, password_hash, etablissement, classroom_id, series_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-      [nom, prenom, telephone, email, passwordHash, etablissement, classroomId, seriesId]
+      `INSERT INTO users (nom, prenom, telephone, email, password_hash, etablissement, classroom_id, series_id, role)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [nom, prenom, telephone, email, passwordHash, etablissement, classroomId, seriesId, role || 'student']
     );
     return new User(rows[0]);
   }
@@ -55,7 +55,7 @@ class UserRepository {
     );
   }
 
-  async updateProfile(userId, { nom, prenom, etablissement, classroomId, seriesId, email, telephone, avatarUrl }) {
+  async updateProfile(userId, { nom, prenom, etablissement, classroomId, seriesId, email, telephone, avatarUrl, role }) {
     const { rows } = await pool.query(
       `UPDATE users SET
          nom = COALESCE($1, nom),
@@ -66,9 +66,10 @@ class UserRepository {
          email = COALESCE($6, email),
          telephone = COALESCE($7, telephone),
          avatar_url = COALESCE($8, avatar_url),
+         role = COALESCE($9, role),
          updated_at = NOW()
-       WHERE id = $9 RETURNING *`,
-      [nom, prenom, etablissement, classroomId, seriesId, email, telephone, avatarUrl, userId]
+       WHERE id = $10 RETURNING *`,
+      [nom, prenom, etablissement, classroomId, seriesId, email, telephone, avatarUrl, role, userId]
     );
     return rows[0] ? await this.findById(userId) : null;
   }

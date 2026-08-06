@@ -4,6 +4,7 @@ class Subject {
     this.name = data.name;
     this.description = data.description;
     this.icon = data.icon;
+    this.color = data.color || '#2563EB';
   }
 
   toJSON() {
@@ -12,6 +13,7 @@ class Subject {
       name: this.name,
       description: this.description,
       icon: this.icon,
+      color: this.color,
     };
   }
 }

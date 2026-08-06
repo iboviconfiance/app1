@@ -9,6 +9,7 @@ class User {
     this.classroomId = data.classroom_id || data.classroomId;
     this.seriesId = data.series_id || data.seriesId;
     this.avatarUrl = data.avatar_url || data.avatarUrl;
+    this.role = data.role || 'student';
     this.createdAt = data.created_at || data.createdAt;
   }
 
@@ -27,6 +28,7 @@ class User {
       classroomId: this.classroomId,
       seriesId: this.seriesId,
       avatarUrl: this.avatarUrl,
+      role: this.role,
       fullName: this.fullName,
       createdAt: this.createdAt,
     };

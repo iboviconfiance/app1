@@ -37,12 +37,17 @@ class SchoolRepository {
 
   async getSubjectsBySeries(seriesId) {
     const { rows } = await pool.query(
-      `SELECT sub.* FROM subjects sub
+      `SELECT sub.*,
+              (SELECT COUNT(*) FROM courses c WHERE c.subject_id = sub.id AND c.series_id = $1) as course_count
+       FROM subjects sub
        JOIN series_subjects ss ON sub.id = ss.subject_id
        WHERE ss.series_id = $1 ORDER BY sub.name`,
       [seriesId]
     );
-    return rows.map(r => new Subject(r).toJSON());
+    return rows.map(r => ({
+      ...new Subject(r).toJSON(),
+      courseCount: parseInt(r.course_count, 10) || 0
+    }));
   }
 
   async getAllSubjects() {

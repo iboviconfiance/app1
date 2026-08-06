@@ -14,6 +14,7 @@ module.exports = (sequelize, DataTypes) => {
     reset_token: DataTypes.STRING(255),
     reset_token_expires: DataTypes.DATE,
     avatar_url: DataTypes.STRING(255),
+    role: { type: DataTypes.STRING(20), defaultValue: 'student' },
   }, { tableName: 'users', underscored: true, timestamps: true });
 
   User.associate = (models) => {

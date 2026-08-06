@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/dashboard_provider.dart';
 import '../../config/constants.dart';
@@ -15,6 +16,8 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  Set<String> _dismissedAnnouncements = {};
+
   @override
   void initState() {
     super.initState();
@@ -25,6 +28,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _load() async {
     await context.read<DashboardProvider>().loadDashboard();
+    await _loadDismissedAnnouncements();
+  }
+
+  Future<void> _loadDismissedAnnouncements() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = prefs.getStringList('dismissed_announcements') ?? [];
+      setState(() {
+        _dismissedAnnouncements = list.toSet();
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _dismissAnnouncement(String id) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _dismissedAnnouncements.add(id);
+      await prefs.setStringList('dismissed_announcements', _dismissedAnnouncements.toList());
+      setState(() {});
+    } catch (_) {}
   }
 
   String _formatDate(String? isoString) {
@@ -118,6 +141,91 @@ class _DashboardScreenState extends State<DashboardScreen> {
               isPremium ? 'Gérer mon abonnement' : 'Découvrir nos offres',
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAnnouncementBanner(Map<String, dynamic> announcement, ThemeData theme) {
+    final String id = announcement['id']?.toString() ?? 'default';
+    if (_dismissedAnnouncements.contains(id)) {
+      return const SizedBox.shrink();
+    }
+
+    final String type = announcement['type'] ?? 'info';
+    final String title = announcement['title'] ?? '';
+    final String content = announcement['content'] ?? '';
+
+    Color bgColor;
+    Color textColor;
+    Color iconColor;
+    IconData iconData;
+
+    switch (type) {
+      case 'warning':
+        bgColor = const Color(0xFFFEF3C7); // Amber 100
+        textColor = const Color(0xFF92400E); // Amber 800
+        iconColor = const Color(0xFFD97706); // Amber 600
+        iconData = Icons.warning_amber_rounded;
+        break;
+      case 'success':
+        bgColor = const Color(0xFFD1FAE5); // Emerald 100
+        textColor = const Color(0xFF065F46); // Emerald 800
+        iconColor = const Color(0xFF059669); // Emerald 600
+        iconData = Icons.check_circle_outline_rounded;
+        break;
+      case 'info':
+      default:
+        bgColor = const Color(0xFFDBEAFE); // Blue 100
+        textColor = const Color(0xFF1E40AF); // Blue 800
+        iconColor = const Color(0xFF2563EB); // Blue 600
+        iconData = Icons.campaign_rounded;
+        break;
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(iconData, color: iconColor, size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: textColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  content,
+                  style: TextStyle(
+                    color: textColor.withOpacity(0.85),
+                    fontSize: 12,
+                    height: 1.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            icon: Icon(Icons.close_rounded, color: textColor.withOpacity(0.6), size: 20),
+            onPressed: () => _dismissAnnouncement(id),
           ),
         ],
       ),
@@ -438,8 +546,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final recentExercises = (data?['recentExercises'] as List?) ?? [];
 
     final progressVal = (progression['overallProgress'] ?? 0).toDouble();
-    // Bind to real progressVal (0..100) or fallback to 75 if it's 0 (meaning no data yet)
-    final double displayProgress = progressVal > 0 ? progressVal : 75.0;
+    final bool hasData = progressVal > 0;
+    final double displayProgress = hasData ? progressVal : 0.0;
     final double percent = displayProgress / 100.0;
 
     // Generate dynamic message based on progression value
@@ -472,64 +580,141 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Row(
-          children: [
-            CircularPercentIndicator(
-              radius: 28,
-              lineWidth: 6,
-              percent: percent,
-              center: Text(
-                '${displayProgress.toInt()}%',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1E293B),
-                  fontSize: 12,
-                ),
-              ),
-              progressColor: const Color(0xFF10B981),
-              backgroundColor: const Color(0xFFE2E8F0),
-              circularStrokeCap: CircularStrokeCap.round,
-              animation: true,
-              animationDuration: 800,
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        child: hasData
+            ? Row(
                 children: [
-                  Text(
-                    statusTitle,
-                    style: const TextStyle(
-                      color: Color(0xFF1E293B),
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
+                  CircularPercentIndicator(
+                    radius: 28,
+                    lineWidth: 6,
+                    percent: percent,
+                    center: Text(
+                      '${displayProgress.toInt()}%',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1E293B),
+                        fontSize: 12,
+                      ),
+                    ),
+                    progressColor: const Color(0xFF10B981),
+                    backgroundColor: const Color(0xFFE2E8F0),
+                    circularStrokeCap: CircularStrokeCap.round,
+                    animation: true,
+                    animationDuration: 800,
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          statusTitle,
+                          style: const TextStyle(
+                            color: Color(0xFF1E293B),
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          statusSubtitle,
+                          style: const TextStyle(
+                            color: Color(0xFF64748B),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    statusSubtitle,
-                    style: const TextStyle(
-                      color: Color(0xFF64748B),
-                      fontSize: 12,
+                  const SizedBox(width: 8),
+                  // Sparkline mini graph
+                  SizedBox(
+                    width: 100,
+                    height: 40,
+                    child: CustomPaint(
+                      painter: SparklinePainter(
+                        data: sparklinePoints,
+                        color: const Color(0xFF1D4ED8),
+                      ),
                     ),
                   ),
                 ],
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.analytics_outlined,
+                          color: const Color(0xFF64748B).withOpacity(0.7),
+                          size: 28,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Aucune donnée pour le moment',
+                              style: TextStyle(
+                                color: Color(0xFF1E293B),
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'Commence tes révisions pour voir ta progression !',
+                              style: TextStyle(
+                                color: Color(0xFF64748B),
+                                fontSize: 11.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      ElevatedButton(
+                        onPressed: () => context.go('/school'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF2563EB),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Explorer les cours',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                            SizedBox(width: 6),
+                            Icon(Icons.arrow_forward_rounded, size: 14),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(width: 8),
-            // Sparkline mini graph
-            SizedBox(
-              width: 100,
-              height: 40,
-              child: CustomPaint(
-                painter: SparklinePainter(
-                  data: sparklinePoints,
-                  color: const Color(0xFF1D4ED8),
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
 
@@ -743,6 +928,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.05, end: 0),
       const SizedBox(height: 20),
       _buildSubscriptionCard(subscription, theme).animate().fadeIn(delay: 100.ms, duration: 400.ms).slideY(begin: 0.05, end: 0),
+      if (data?['announcement'] != null) ...[
+        const SizedBox(height: 20),
+        _buildAnnouncementBanner(data!['announcement'], theme).animate().fadeIn(delay: 110.ms, duration: 400.ms).slideY(begin: 0.05, end: 0),
+      ],
       const SizedBox(height: 20),
       Text(
         'Ma progression',

@@ -31,6 +31,14 @@ class DashboardService {
       ? Math.round(history.reduce((sum, h) => sum + h.progressPercent, 0) / totalCoursesViewed)
       : 0;
 
+    const announcementActive = process.env.ANNOUNCEMENT_ACTIVE !== 'false';
+    const announcement = announcementActive ? {
+      id: process.env.ANNOUNCEMENT_ID || "announcement_exam_prep",
+      title: process.env.ANNOUNCEMENT_TITLE || "Préparation des Examens",
+      content: process.env.ANNOUNCEMENT_CONTENT || "Révise tes examens du BAC/BEPC avec nos nouveaux quiz et sujets corrigés !",
+      type: process.env.ANNOUNCEMENT_TYPE || "info", // info | warning | success
+    } : null;
+
     return {
       user,
       subscription,
@@ -43,6 +51,7 @@ class DashboardService {
       },
       recentCourses,
       recentExercises,
+      announcement,
     };
   }
 }

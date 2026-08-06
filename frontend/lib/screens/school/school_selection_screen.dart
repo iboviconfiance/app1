@@ -132,6 +132,42 @@ class _SchoolSelectionScreenState extends State<SchoolSelectionScreen> {
     }
   }
 
+  Color _parseHexColor(String hexString) {
+    try {
+      final cleanHex = hexString.replaceAll('#', '');
+      return Color(int.parse('FF$cleanHex', radix: 16));
+    } catch (_) {
+      return const Color(0xFF2563EB);
+    }
+  }
+
+  IconData _getSubjectIcon(String? iconName) {
+    switch (iconName) {
+      case 'calculate_rounded':
+        return Icons.calculate_rounded;
+      case 'menu_book_rounded':
+        return Icons.menu_book_rounded;
+      case 'language_rounded':
+        return Icons.language_rounded;
+      case 'science_rounded':
+        return Icons.science_rounded;
+      case 'grass_rounded':
+        return Icons.grass_rounded;
+      case 'psychology_rounded':
+        return Icons.psychology_rounded;
+      case 'engineering_rounded':
+        return Icons.engineering_rounded;
+      case 'architecture_rounded':
+        return Icons.architecture_rounded;
+      case 'history_edu_rounded':
+        return Icons.history_edu_rounded;
+      case 'public_rounded':
+        return Icons.public_rounded;
+      default:
+        return Icons.menu_book_rounded;
+    }
+  }
+
   Color _levelColor(int index) {
     final colors = [
       const Color(0xFF2563EB), // Blue
@@ -604,9 +640,10 @@ class _SchoolSelectionScreenState extends State<SchoolSelectionScreen> {
             itemCount: _subjects.length,
             itemBuilder: (context, index) {
               final sub = _subjects[index];
-              final subColor = _levelColor(index + 2);
-              // Mock progression metrics (e.g. 75%, 45%, 0% for premium display)
+              final String hexColor = sub['color'] ?? '#2563EB';
+              final subColor = _parseHexColor(hexColor);
               final progress = (index == 0) ? 75 : ((index == 1) ? 45 : 0);
+              final courseCount = sub['courseCount'] ?? 0;
 
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
@@ -615,7 +652,7 @@ class _SchoolSelectionScreenState extends State<SchoolSelectionScreen> {
                   margin: EdgeInsets.zero,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
-                    side: BorderSide(color: const Color(0xFFF1F5F9)!, width: 1.5),
+                    side: const BorderSide(color: Color(0xFFF1F5F9), width: 1.5),
                   ),
                   child: InkWell(
                     onTap: () {
@@ -635,7 +672,7 @@ class _SchoolSelectionScreenState extends State<SchoolSelectionScreen> {
                               color: subColor.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: Icon(Icons.menu_book_rounded, color: subColor),
+                            child: Icon(_getSubjectIcon(sub['icon']), color: subColor),
                           ),
                           const SizedBox(width: 16),
                           Expanded(
@@ -654,8 +691,8 @@ class _SchoolSelectionScreenState extends State<SchoolSelectionScreen> {
                                 Row(
                                   children: [
                                     Text(
-                                      '${progress == 75 ? 3 : 1} Chapitres',
-                                      style: TextStyle(color: const Color(0xFF64748B), fontSize: 12, fontWeight: FontWeight.w500),
+                                      '$courseCount ${courseCount > 1 ? "Chapitres" : "Chapitre"}',
+                                      style: const TextStyle(color: Color(0xFF64748B), fontSize: 12, fontWeight: FontWeight.w500),
                                     ),
                                     const SizedBox(width: 12),
                                     Expanded(
