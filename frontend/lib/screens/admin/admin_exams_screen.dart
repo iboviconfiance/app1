@@ -17,7 +17,6 @@ class _AdminExamsScreenState extends State<AdminExamsScreen> {
   List<dynamic> _subjectsList = [];
   List<dynamic> _seriesList = [];
   bool _loadingMeta = false;
-  String _searchQuery = '';
 
   final Map<String, Color> _typeColors = {
     'bac': const Color(0xFF2563EB),
@@ -30,6 +29,7 @@ class _AdminExamsScreenState extends State<AdminExamsScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<AdminProvider>().setSearchQuery('');
       context.read<AdminProvider>().loadExams();
       _loadMeta();
     });
@@ -82,7 +82,7 @@ class _AdminExamsScreenState extends State<AdminExamsScreen> {
       builder: (dialogCtx) => StatefulBuilder(
         builder: (ctx, setS) {
           Future<void> pickAndUpload({required bool isEpreuve}) async {
-            final result = await FilePicker.platform.pickFiles(
+            final result = await FilePicker.pickFiles(
               type: FileType.custom,
               allowedExtensions: ['pdf'],
               withData: true,
@@ -110,7 +110,10 @@ class _AdminExamsScreenState extends State<AdminExamsScreen> {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
             insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 520, maxHeight: 680),
+              constraints: BoxConstraints(
+                maxWidth: 520,
+                maxHeight: MediaQuery.of(ctx).size.height * 0.85,
+              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -162,10 +165,15 @@ class _AdminExamsScreenState extends State<AdminExamsScreen> {
                     ),
                   ),
 
-                  // ── Scrollable content ─────────────────────────────────
+                  // ── Scrollable content ──────────────────────────────────────────────
                   Flexible(
                     child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(24),
+                      padding: EdgeInsets.fromLTRB(
+                        24,
+                        24,
+                        24,
+                        24 + MediaQuery.of(ctx).viewInsets.bottom,
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -468,11 +476,12 @@ class _AdminExamsScreenState extends State<AdminExamsScreen> {
     final loading = adminProv.loading || _loadingMeta;
     final width = MediaQuery.of(context).size.width;
 
+    final query = adminProv.searchQuery;
     final filtered = exams.where((e) {
-      if (_searchQuery.isEmpty) return true;
+      if (query.isEmpty) return true;
       final t = (e['title'] ?? '').toString().toLowerCase();
       final sub = (e['subject_name'] ?? '').toString().toLowerCase();
-      final q = _searchQuery.toLowerCase();
+      final q = query.toLowerCase();
       return t.contains(q) || sub.contains(q);
     }).toList();
 
@@ -483,7 +492,7 @@ class _AdminExamsScreenState extends State<AdminExamsScreen> {
       actionLabel: 'Ajouter une annale',
       onAction: () => _showFormDialog(),
       onBack: () => context.go('/admin'),
-      onSearch: (q) => setState(() => _searchQuery = q),
+      onSearch: (q) => adminProv.setSearchQuery(q),
       child: loading && filtered.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -597,7 +606,7 @@ class _AdminExamsScreenState extends State<AdminExamsScreen> {
               // ── Content ─────────────────────────────────────────────
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -623,15 +632,15 @@ class _AdminExamsScreenState extends State<AdminExamsScreen> {
                             hasCorrige ? 'Avec corrigé' : 'Sans corrigé',
                             hasCorrige ? const Color(0xFF10B981) : const Color(0xFF64748B),
                           ),
-                          // Actions menu
+                          // Actions menu — zone de clic agrandie
                           PopupMenuButton<String>(
                             icon: Container(
-                              padding: const EdgeInsets.all(5),
+                              padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFF1F5F9),
-                                borderRadius: BorderRadius.circular(7),
+                                borderRadius: BorderRadius.circular(8),
                               ),
-                              child: const Icon(Icons.more_horiz_rounded, size: 15, color: kTextSecondary),
+                              child: const Icon(Icons.more_horiz_rounded, size: 16, color: kTextSecondary),
                             ),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             elevation: 8,

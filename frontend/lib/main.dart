@@ -5,6 +5,7 @@ import 'providers/auth_provider.dart';
 import 'providers/course_provider.dart';
 import 'providers/dashboard_provider.dart';
 import 'providers/admin_provider.dart';
+import 'providers/notification_provider.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,6 +24,10 @@ void main() {
         ChangeNotifierProxyProvider<AuthProvider, AdminProvider>(
           create: (context) => AdminProvider(context.read<AuthProvider>().api),
           update: (context, auth, previous) => previous ?? AdminProvider(auth.api),
+        ),
+        ChangeNotifierProxyProvider<AuthProvider, NotificationProvider>(
+          create: (context) => NotificationProvider(context.read<AuthProvider>().api),
+          update: (context, auth, previous) => previous ?? NotificationProvider(auth.api),
         ),
       ],
       child: const KlasPlusApp(),

@@ -17,6 +17,7 @@ const workGroupRoutes = require('./presentation/routes/workGroupRoutes');
 const webhookRoutes = require('./presentation/routes/webhookRoutes');
 const configRoutes = require('./presentation/routes/configRoutes');
 const adminRoutes = require('./presentation/routes/adminRoutes');
+const notificationRoutes = require('./presentation/routes/notificationRoutes');
 
 function createApp() {
   const app = express();
@@ -55,6 +56,7 @@ function createApp() {
   app.use('/api/webhooks', webhookRoutes);
   app.use('/api/config', configRoutes);
   app.use('/api/admin', adminRoutes);
+  app.use('/api/notifications', notificationRoutes);
 
   app.use(errorHandler);
 

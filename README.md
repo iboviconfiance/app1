@@ -93,8 +93,9 @@ docker compose up --build -d
 
 **Compte démo :** `+237670000001` / `password123`
 
-```bash
-# Arrêter
+```bash                                                     
+f'(                                                     *
+"'  Arrêter
 docker compose down
 
 # Tout supprimer (données incluses)

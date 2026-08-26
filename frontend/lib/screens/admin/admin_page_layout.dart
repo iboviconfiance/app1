@@ -43,25 +43,11 @@ class AdminPageLayout extends StatefulWidget {
 }
 
 class _AdminPageLayoutState extends State<AdminPageLayout> {
-  Timer? _debounce;
-
-  void _onSearchChanged(String value) {
-    // ── Debounce 300ms (Point de vigilance 1) ────────────────────────────────
-    if (_debounce?.isActive ?? false) _debounce!.cancel();
-    _debounce = Timer(const Duration(milliseconds: 300), () {
-      widget.onSearch(value);
-    });
-  }
-
-  @override
-  void dispose() {
-    _debounce?.cancel();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
-    final isWide = MediaQuery.of(context).size.width > 700;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isWide = screenWidth > 700;
+    final isNarrow = screenWidth < 380;
 
     return Scaffold(
       backgroundColor: kBg,
@@ -112,28 +98,9 @@ class _AdminPageLayoutState extends State<AdminPageLayout> {
 
                     // SearchBar — uniquement sur écrans larges (debounced)
                     if (isWide) ...[
-                      Container(
-                        width: 220,
-                        height: 38,
-                        margin: const EdgeInsets.only(right: 12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF1F5F9),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: TextField(
-                          onChanged: _onSearchChanged,
-                          style: const TextStyle(fontSize: 13),
-                          decoration: InputDecoration(
-                            hintText: widget.searchHint,
-                            hintStyle:
-                                const TextStyle(color: kTextMuted, fontSize: 13),
-                            prefixIcon: const Icon(Icons.search_rounded,
-                                size: 18, color: kTextMuted),
-                            border: InputBorder.none,
-                            contentPadding:
-                                const EdgeInsets.symmetric(vertical: 10),
-                          ),
-                        ),
+                      _AdminSearchBar(
+                        hintText: widget.searchHint,
+                        onSearch: widget.onSearch,
                       ),
                     ],
 
@@ -144,13 +111,16 @@ class _AdminPageLayoutState extends State<AdminPageLayout> {
                     FilledButton.icon(
                       onPressed: widget.onAction,
                       icon: const Icon(Icons.add_rounded, size: 18),
-                      label: Text(isWide ? widget.actionLabel : 'Ajouter'),
+                      label: Text(
+                        isWide ? widget.actionLabel : (isNarrow ? '+' : 'Ajouter'),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       style: FilledButton.styleFrom(
                         backgroundColor: kBlue,
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10)),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 10),
+                        padding: EdgeInsets.symmetric(
+                            horizontal: isNarrow ? 10 : 16, vertical: 10),
                       ),
                     ),
                   ],
@@ -184,29 +154,35 @@ int adminGridColumns(double width) {
   return 1;
 }
 
-/// Calcule le childAspectRatio de façon dynamique (Point de vigilance 2).
-/// Évite l'écrasement du contenu sur les cartes au redimensionnement Web.
+/// Calcule le childAspectRatio de façon dynamique.
+/// Évite l'écrasement du contenu sur les cartes au redimensionnement Web/Android.
 double adminCardAspectRatio(double width, {int columns = -1}) {
   final cols = columns > 0 ? columns : adminGridColumns(width);
   // Largeur estimée d'une carte = (width - marges) / cols
   final cardWidth = (width.clamp(320.0, 1100.0) - 48 - (cols - 1) * 14) / cols;
-  // Hauteur cible = 210px fixe → ratio = width / height
-  return cardWidth / 210;
+  // Hauteur cible : 230px sur mobile pour avoir assez d'espace au contenu
+  final targetHeight = width < 400 ? 230.0 : 210.0;
+  return (cardWidth / targetHeight).clamp(0.7, 2.0);
 }
 
 // ─── Badge helpers ────────────────────────────────────────────────────────────
 
 Widget adminBadge(String label, Color color) {
+  // Calculer une couleur de texte avec un contraste suffisant
+  final hsl = HSLColor.fromColor(color);
+  final textColor = hsl.lightness > 0.55
+      ? hsl.withLightness(0.30).toColor()
+      : color;
   return Container(
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
     decoration: BoxDecoration(
-      color: color.withOpacity(0.12),
+      color: color.withOpacity(0.18),
       borderRadius: BorderRadius.circular(20),
     ),
     child: Text(
       label,
       style: TextStyle(
-          fontSize: 10, fontWeight: FontWeight.bold, color: color),
+          fontSize: 10, fontWeight: FontWeight.bold, color: textColor),
     ),
   );
 }
@@ -228,12 +204,79 @@ PopupMenuItem<String> adminMenuItem(
     String value, String label, IconData icon, Color color) {
   return PopupMenuItem<String>(
     value: value,
+    // Zone de tap au moins 48dp de hauteur (déjà géré par PopupMenuItem),
+    // on augmente le padding horizontal pour le confort
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
     child: Row(
       children: [
-        Icon(icon, size: 16, color: color),
+        Icon(icon, size: 18, color: color),
         const SizedBox(width: 10),
         Text(label, style: TextStyle(fontSize: 13, color: color)),
       ],
     ),
   );
+}
+
+// ─── _AdminSearchBar ─────────────────────────────────────────────────────────
+class _AdminSearchBar extends StatefulWidget {
+  final String hintText;
+  final ValueChanged<String> onSearch;
+
+  const _AdminSearchBar({
+    required this.hintText,
+    required this.onSearch,
+  });
+
+  @override
+  State<_AdminSearchBar> createState() => _AdminSearchBarState();
+}
+
+class _AdminSearchBarState extends State<_AdminSearchBar> {
+  Timer? _debounce;
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+  }
+
+  void _onSearchChanged(String value) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      widget.onSearch(value);
+    });
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 220,
+      height: 38,
+      margin: const EdgeInsets.only(right: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: TextField(
+        controller: _controller,
+        onChanged: _onSearchChanged,
+        style: const TextStyle(fontSize: 13),
+        decoration: InputDecoration(
+          hintText: widget.hintText,
+          hintStyle: const TextStyle(color: kTextMuted, fontSize: 13),
+          prefixIcon: const Icon(Icons.search_rounded, size: 18, color: kTextMuted),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(vertical: 10),
+        ),
+      ),
+    );
+  }
 }

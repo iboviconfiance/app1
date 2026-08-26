@@ -13,8 +13,8 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _phoneCtrl = TextEditingController(text: '+242 06 123 4567');
-  final _passCtrl = TextEditingController(text: 'password123');
+  final _phoneCtrl = TextEditingController();
+  final _passCtrl = TextEditingController();
   bool _obscureText = true;
   String? _error;
 
@@ -116,6 +116,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   controller: _passCtrl,
                   decoration: InputDecoration(
                     labelText: 'Mot de passe',
+                    hintText: '••••••••',
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscureText ? Icons.visibility_off_outlined : Icons.visibility_outlined,

@@ -17,12 +17,12 @@ class _AdminCoursesScreenState extends State<AdminCoursesScreen> {
   List<dynamic> _classrooms = [];
   List<dynamic> _seriesList = [];
   bool _loadingMeta = false;
-  String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<AdminProvider>().setSearchQuery('');
       context.read<AdminProvider>().loadCourses();
       context.read<AdminProvider>().loadSubjects();
       _loadMeta();
@@ -86,7 +86,7 @@ class _AdminCoursesScreenState extends State<AdminCoursesScreen> {
         builder: (ctx, setS) {
           Future<void> pickAndUpload({required bool isMainFile}) async {
             final isPdf = selectedType == 'pdf';
-            final result = await FilePicker.platform.pickFiles(
+            final result = await FilePicker.pickFiles(
               type: isMainFile
                   ? (isPdf ? FileType.custom : FileType.video)
                   : FileType.image,
@@ -116,7 +116,10 @@ class _AdminCoursesScreenState extends State<AdminCoursesScreen> {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
             insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 520, maxHeight: 680),
+              constraints: BoxConstraints(
+                maxWidth: 520,
+                maxHeight: MediaQuery.of(ctx).size.height * 0.85,
+              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -174,10 +177,16 @@ class _AdminCoursesScreenState extends State<AdminCoursesScreen> {
                     ),
                   ),
 
-                  // ── Scrollable content ─────────────────────────────────
+                  // ── Scrollable content ──────────────────────────────────────────────
                   Flexible(
                     child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(24),
+                      // Pousser le contenu au-dessus du clavier virtuel
+                      padding: EdgeInsets.fromLTRB(
+                        24,
+                        24,
+                        24,
+                        24 + MediaQuery.of(ctx).viewInsets.bottom,
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -484,11 +493,12 @@ class _AdminCoursesScreenState extends State<AdminCoursesScreen> {
     final loading = adminProv.loading || _loadingMeta;
     final width = MediaQuery.of(context).size.width;
 
+    final query = adminProv.searchQuery;
     final courses = adminProv.courses.where((c) {
-      if (_searchQuery.isEmpty) return true;
+      if (query.isEmpty) return true;
       final title = (c['title'] ?? '').toString().toLowerCase();
       final subject = (c['subject_name'] ?? '').toString().toLowerCase();
-      final q = _searchQuery.toLowerCase();
+      final q = query.toLowerCase();
       return title.contains(q) || subject.contains(q);
     }).toList();
 
@@ -499,7 +509,7 @@ class _AdminCoursesScreenState extends State<AdminCoursesScreen> {
       actionLabel: 'Nouveau cours',
       onAction: () => _showFormDialog(),
       onBack: () => context.go('/admin'),
-      onSearch: (q) => setState(() => _searchQuery = q),
+      onSearch: (q) => adminProv.setSearchQuery(q),
       child: loading && courses.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -632,7 +642,7 @@ class _AdminCoursesScreenState extends State<AdminCoursesScreen> {
               // ── Content ─────────────────────────────────────────────────
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -667,16 +677,16 @@ class _AdminCoursesScreenState extends State<AdminCoursesScreen> {
                               shape: BoxShape.circle,
                             ),
                           ),
-                          // PopupMenu
+                          // PopupMenu — zone de clic agrandie
                           PopupMenuButton<String>(
                             icon: Container(
-                              padding: const EdgeInsets.all(5),
+                              padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFF1F5F9),
-                                borderRadius: BorderRadius.circular(7),
+                                borderRadius: BorderRadius.circular(8),
                               ),
                               child: const Icon(Icons.more_horiz_rounded,
-                                  size: 15, color: kTextSecondary),
+                                  size: 16, color: kTextSecondary),
                             ),
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12)),

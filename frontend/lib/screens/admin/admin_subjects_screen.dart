@@ -80,214 +80,237 @@ class _AdminSubjectsScreenState extends State<AdminSubjectsScreen> {
 
     showDialog(
       context: context,
+      // Fond semi-opaque net pour masquer correctement le fond
+      barrierColor: Colors.black.withOpacity(0.60),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setS) {
           final previewColor = _hex(selectedColor);
           return Dialog(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-            insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+            insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 32),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 480),
+              constraints: BoxConstraints(
+                maxWidth: 480,
+                maxHeight: MediaQuery.of(ctx).size.height * 0.88,
+              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // ── Preview Header ─────────────────────────────────────
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 28),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [previewColor, previewColor.withOpacity(0.6)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 24),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [previewColor, previewColor.withOpacity(0.6)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
                       ),
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-                    ),
-                    child: Column(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.25),
-                            borderRadius: BorderRadius.circular(16),
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.25),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Center(
+                              child: Icon(
+                                _availableIcons[selectedIconKey] ?? Icons.menu_book_rounded,
+                                color: Colors.white,
+                                size: 32,
+                              ),
+                            ),
                           ),
-                          child: Icon(
-                            _availableIcons[selectedIconKey] ?? Icons.menu_book_rounded,
-                            color: Colors.white,
-                            size: 32,
+                          const SizedBox(height: 10),
+                          Text(
+                            nameCtrl.text.isEmpty ? 'Nom de la matière' : nameCtrl.text,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          nameCtrl.text.isEmpty ? 'Nom de la matière' : nameCtrl.text,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
 
+
                   // ── Form ───────────────────────────────────────────────
-                  Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        TextField(
-                          controller: nameCtrl,
-                          onChanged: (_) => setS(() {}),
-                          decoration: InputDecoration(
-                            labelText: 'Nom de la matière',
-                            hintText: 'ex: Mathématiques',
-                            prefixIcon: const Icon(Icons.edit_outlined),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                            filled: true,
-                            fillColor: const Color(0xFFF8FAFC),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        TextField(
-                          controller: descCtrl,
-                          maxLines: 2,
-                          decoration: InputDecoration(
-                            labelText: 'Description (facultatif)',
-                            prefixIcon: const Icon(Icons.notes_outlined),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                            filled: true,
-                            fillColor: const Color(0xFFF8FAFC),
-                          ),
-                        ),
-                        const SizedBox(height: 20),
+                  // Flexible + SingleChildScrollView gèrent le clavier virtuel
+                  Flexible(
+                    child: SingleChildScrollView(
+                      padding: EdgeInsets.fromLTRB(
+                        24,
+                        20,
+                        24,
+                        20 + MediaQuery.of(ctx).viewInsets.bottom,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
 
-                        // Color picker
-                        const Text('Couleur', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: kTextSecondary)),
-                        const SizedBox(height: 10),
-                        Wrap(
-                          spacing: 10,
-                          runSpacing: 10,
-                          children: _availableColors.map((hex) {
-                            final isSel = hex == selectedColor;
-                            return GestureDetector(
-                              onTap: () => setS(() => selectedColor = hex),
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                width: isSel ? 38 : 34,
-                                height: isSel ? 38 : 34,
-                                decoration: BoxDecoration(
-                                  color: _hex(hex),
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: isSel ? Colors.white : Colors.transparent,
-                                    width: 3,
-                                  ),
-                                  boxShadow: isSel
-                                      ? [BoxShadow(color: _hex(hex).withOpacity(0.5), blurRadius: 8, spreadRadius: 1)]
-                                      : [],
-                                ),
-                                child: isSel
-                                    ? const Icon(Icons.check_rounded, color: Colors.white, size: 16)
-                                    : null,
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                        const SizedBox(height: 20),
-
-                        // Icon picker
-                        const Text('Icône', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: kTextSecondary)),
-                        const SizedBox(height: 10),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: _availableIcons.entries.map((entry) {
-                            final isSel = entry.key == selectedIconKey;
-                            final selColor = _hex(selectedColor);
-                            return GestureDetector(
-                              onTap: () => setS(() => selectedIconKey = entry.key),
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                width: 44,
-                                height: 44,
-                                decoration: BoxDecoration(
-                                  color: isSel ? selColor : const Color(0xFFF1F5F9),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: isSel ? selColor : Colors.transparent,
-                                    width: 2,
-                                  ),
-                                  boxShadow: isSel
-                                      ? [BoxShadow(color: selColor.withOpacity(0.3), blurRadius: 8)]
-                                      : [],
-                                ),
-                                child: Icon(
-                                  entry.value,
-                                  size: 22,
-                                  color: isSel ? Colors.white : kTextSecondary,
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                        const SizedBox(height: 24),
-
-                        // Actions
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton(
-                                onPressed: () => Navigator.pop(ctx),
-                                style: OutlinedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                ),
-                                child: const Text('Annuler'),
-                              ),
+                        children: [
+                          TextField(
+                            controller: nameCtrl,
+                            onChanged: (_) => setS(() {}),
+                            decoration: InputDecoration(
+                              labelText: 'Nom de la matière',
+                              hintText: 'ex: Mathématiques',
+                              prefixIcon: const Icon(Icons.edit_outlined),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              filled: true,
+                              fillColor: const Color(0xFFF8FAFC),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              flex: 2,
-                              child: FilledButton(
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: _hex(selectedColor),
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                ),
-                                onPressed: () async {
-                                  if (nameCtrl.text.trim().isEmpty) return;
-                                  final adminProv = context.read<AdminProvider>();
-                                  if (isEdit) {
-                                    await adminProv.updateSubject(
-                                      subject['id'],
-                                      nameCtrl.text.trim(),
-                                      descCtrl.text.trim(),
-                                      selectedIconKey,
-                                      selectedColor,
-                                    );
-                                  } else {
-                                    await adminProv.createSubject(
-                                      nameCtrl.text.trim(),
-                                      descCtrl.text.trim(),
-                                      selectedIconKey,
-                                      selectedColor,
-                                    );
-                                  }
-                                  if (ctx.mounted) Navigator.pop(ctx);
-                                },
-                                child: Text(isEdit ? 'Enregistrer' : 'Créer la matière'),
-                              ),
+                          ),
+                          const SizedBox(height: 14),
+                          TextField(
+                            controller: descCtrl,
+                            maxLines: 2,
+                            decoration: InputDecoration(
+                              labelText: 'Description (facultatif)',
+                              prefixIcon: const Icon(Icons.notes_outlined),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              filled: true,
+                              fillColor: const Color(0xFFF8FAFC),
                             ),
-                          ],
-                        ),
-                      ],
+                          ),
+                          const SizedBox(height: 20),
+
+                          // Color picker
+                          const Text('Couleur', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: kTextSecondary)),
+                          const SizedBox(height: 10),
+                          Wrap(
+                            spacing: 10,
+                            runSpacing: 10,
+                            children: _availableColors.map((hex) {
+                              final isSel = hex == selectedColor;
+                              return GestureDetector(
+                                onTap: () => setS(() => selectedColor = hex),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  width: isSel ? 38 : 34,
+                                  height: isSel ? 38 : 34,
+                                  decoration: BoxDecoration(
+                                    color: _hex(hex),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: isSel ? Colors.white : Colors.transparent,
+                                      width: 3,
+                                    ),
+                                    boxShadow: isSel
+                                        ? [BoxShadow(color: _hex(hex).withOpacity(0.5), blurRadius: 8, spreadRadius: 1)]
+                                        : [],
+                                  ),
+                                  child: isSel
+                                      ? const Icon(Icons.check_rounded, color: Colors.white, size: 16)
+                                      : null,
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                          const SizedBox(height: 20),
+
+                          // Icon picker
+                          const Text('Icône', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: kTextSecondary)),
+                          const SizedBox(height: 10),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: _availableIcons.entries.map((entry) {
+                              final isSel = entry.key == selectedIconKey;
+                              final selColor = _hex(selectedColor);
+                              return GestureDetector(
+                                onTap: () => setS(() => selectedIconKey = entry.key),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  width: 44,
+                                  height: 44,
+                                  decoration: BoxDecoration(
+                                    color: isSel ? selColor : const Color(0xFFF1F5F9),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: isSel ? selColor : Colors.transparent,
+                                      width: 2,
+                                    ),
+                                    boxShadow: isSel
+                                        ? [BoxShadow(color: selColor.withOpacity(0.3), blurRadius: 8)]
+                                        : [],
+                                  ),
+                                  child: Icon(
+                                    entry.value,
+                                    size: 22,
+                                    color: isSel ? Colors.white : kTextSecondary,
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                          const SizedBox(height: 24),
+
+                          // Actions
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: () => Navigator.pop(ctx),
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(vertical: 14),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  ),
+                                  child: const Text('Annuler'),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                flex: 2,
+                                child: FilledButton(
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: _hex(selectedColor),
+                                    padding: const EdgeInsets.symmetric(vertical: 14),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  ),
+                                  onPressed: () async {
+                                    if (nameCtrl.text.trim().isEmpty) return;
+                                    final adminProv = context.read<AdminProvider>();
+                                    if (isEdit) {
+                                      await adminProv.updateSubject(
+                                        subject['id'],
+                                        nameCtrl.text.trim(),
+                                        descCtrl.text.trim(),
+                                        selectedIconKey,
+                                        selectedColor,
+                                      );
+                                    } else {
+                                      await adminProv.createSubject(
+                                        nameCtrl.text.trim(),
+                                        descCtrl.text.trim(),
+                                        selectedIconKey,
+                                        selectedColor,
+                                      );
+                                    }
+                                    if (ctx.mounted) Navigator.pop(ctx);
+                                  },
+                                  child: Text(isEdit ? 'Enregistrer' : 'Créer la matière'),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
           );
+
         },
       ),
     );

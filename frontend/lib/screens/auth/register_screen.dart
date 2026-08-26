@@ -13,12 +13,12 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _fullNameCtrl = TextEditingController(text: 'Jean Michel');
-  final _phoneCtrl = TextEditingController(text: '+242 06 123 4567');
-  final _emailCtrl = TextEditingController(text: 'jean.michel@gmail.com');
-  final _passCtrl = TextEditingController(text: 'password123');
-  final _confirmPassCtrl = TextEditingController(text: 'password123');
-  final _etabCtrl = TextEditingController(text: 'Lycée Technique de Kinshasa');
+  final _fullNameCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
+  final _passCtrl = TextEditingController();
+  final _confirmPassCtrl = TextEditingController();
+  final _etabCtrl = TextEditingController();
   
   List<dynamic> _allClassrooms = [];
   List<dynamic> _filteredClassrooms = [];
@@ -211,6 +211,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   controller: _passCtrl,
                   decoration: InputDecoration(
                     labelText: 'Mot de passe',
+                    hintText: '••••••••',
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscureText ? Icons.visibility_off_outlined : Icons.visibility_outlined,
@@ -228,6 +229,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   controller: _confirmPassCtrl,
                   decoration: InputDecoration(
                     labelText: 'Confirmer le mot de passe',
+                    hintText: '••••••••',
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscureConfirmText ? Icons.visibility_off_outlined : Icons.visibility_outlined,

@@ -6,6 +6,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/dashboard_provider.dart';
+import '../../providers/notification_provider.dart';
 import '../../config/constants.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -17,6 +18,8 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   Set<String> _dismissedAnnouncements = {};
+  final LayerLink _notifLayerLink = LayerLink();
+  OverlayEntry? _notifOverlay;
 
   @override
   void initState() {
@@ -27,7 +30,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _load() async {
-    await context.read<DashboardProvider>().loadDashboard();
+    final dashProv = context.read<DashboardProvider>();
+    final notifProv = context.read<NotificationProvider>();
+    await dashProv.loadDashboard();
+    await notifProv.loadNotifications();
     await _loadDismissedAnnouncements();
   }
 
@@ -48,6 +54,234 @@ class _DashboardScreenState extends State<DashboardScreen> {
       await prefs.setStringList('dismissed_announcements', _dismissedAnnouncements.toList());
       setState(() {});
     } catch (_) {}
+  }
+
+  // ── Notification helpers ───────────────────────────────────────────────────
+
+  static IconData _iconForType(String type) {
+    switch (type) {
+      case 'course': return Icons.menu_book_rounded;
+      case 'exercise': return Icons.quiz_rounded;
+      case 'subscription': return Icons.workspace_premium_rounded;
+      default: return Icons.notifications_rounded;
+    }
+  }
+
+  static Color _colorForType(String type) {
+    switch (type) {
+      case 'course': return const Color(0xFF2563EB);
+      case 'exercise': return const Color(0xFF8B5CF6);
+      case 'subscription': return const Color(0xFFF59E0B);
+      default: return const Color(0xFF64748B);
+    }
+  }
+
+  static String _timeAgo(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 60) return '${diff.inMinutes} min';
+    if (diff.inHours < 24) return '${diff.inHours} h';
+    return '${diff.inDays} j';
+  }
+
+  void _toggleNotifOverlay(BuildContext context) {
+    if (_notifOverlay != null) {
+      _notifOverlay!.remove();
+      _notifOverlay = null;
+      return;
+    }
+    final notifProv = context.read<NotificationProvider>();
+    final overlay = Overlay.of(context);
+    _notifOverlay = OverlayEntry(
+      builder: (ctx) => ChangeNotifierProvider.value(
+        value: notifProv,
+        child: GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onTap: () {
+            _notifOverlay?.remove();
+            _notifOverlay = null;
+          },
+          child: Stack(
+            children: [
+              const SizedBox.expand(),
+              CompositedTransformFollower(
+                link: _notifLayerLink,
+                showWhenUnlinked: false,
+                offset: const Offset(-180, 44),
+                child: Material(
+                  color: Colors.transparent,
+                  child: GestureDetector(
+                    onTap: () {},
+                    child: Consumer<NotificationProvider>(
+                      builder: (ctx2, prov, _) => Container(
+                        width: 260,
+                        constraints: const BoxConstraints(maxHeight: 380),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.10),
+                              blurRadius: 24,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                          border: Border.all(color: const Color(0xFFE8EDF5)),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // ── Header ────────────────────────────────────
+                            Container(
+                              padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+                              decoration: const BoxDecoration(
+                                border: Border(bottom: BorderSide(color: Color(0xFFE8EDF5))),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text('Notifications',
+                                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF0F172A))),
+                                  if (prov.unreadCount > 0)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: Colors.red,
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Text('${prov.unreadCount}',
+                                          style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                                    ),
+                                ],
+                              ),
+                            ),
+
+                            // ── List ──────────────────────────────────────
+                            if (prov.loading)
+                              const Padding(
+                                padding: EdgeInsets.all(20),
+                                child: Center(child: CircularProgressIndicator()),
+                              )
+                            else if (prov.notifications.isEmpty)
+                              const Padding(
+                                padding: EdgeInsets.all(20),
+                                child: Text('Aucune notification',
+                                    style: TextStyle(fontSize: 13, color: Color(0xFF94A3B8))),
+                              )
+                            else
+                              Flexible(
+                                child: ListView.builder(
+                                  shrinkWrap: true,
+                                  physics: const ClampingScrollPhysics(),
+                                  itemCount: prov.notifications.length,
+                                  itemBuilder: (_, i) {
+                                    final n = prov.notifications[i];
+                                    final color = _colorForType(n.type);
+                                    return Material(
+                                      color: n.isRead
+                                          ? Colors.white
+                                          : const Color(0xFFF0F6FF),
+                                      child: InkWell(
+                                        onTap: () {
+                                          prov.markAsRead(n.id);
+                                          _notifOverlay?.remove();
+                                          _notifOverlay = null;
+                                          if (n.actionRoute != null) {
+                                            context.go(n.actionRoute!);
+                                          }
+                                        },
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                          child: Row(
+                                            children: [
+                                              Container(
+                                                width: 34,
+                                                height: 34,
+                                                decoration: BoxDecoration(
+                                                  color: color.withValues(alpha: 0.10),
+                                                  borderRadius: BorderRadius.circular(10),
+                                                ),
+                                                child: Icon(_iconForType(n.type), size: 16, color: color),
+                                              ),
+                                              const SizedBox(width: 10),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(n.title,
+                                                        style: TextStyle(
+                                                          fontSize: 12,
+                                                          fontWeight: n.isRead ? FontWeight.w400 : FontWeight.w600,
+                                                          color: const Color(0xFF0F172A),
+                                                        )),
+                                                    Text(_timeAgo(n.createdAt),
+                                                        style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
+                                                  ],
+                                                ),
+                                              ),
+                                              if (!n.isRead)
+                                                Container(
+                                                  width: 6,
+                                                  height: 6,
+                                                  decoration: const BoxDecoration(
+                                                    color: Color(0xFF2563EB),
+                                                    shape: BoxShape.circle,
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+
+                            // ── Footer ────────────────────────────────────
+                            if (prov.unreadCount > 0)
+                              Container(
+                                decoration: const BoxDecoration(
+                                  border: Border(top: BorderSide(color: Color(0xFFE8EDF5))),
+                                ),
+                                child: TextButton(
+                                  onPressed: () async {
+                                    await prov.markAllAsRead();
+                                    _notifOverlay?.remove();
+                                    _notifOverlay = null;
+                                  },
+                                  child: const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.done_all_rounded, size: 14, color: Color(0xFF2563EB)),
+                                      SizedBox(width: 6),
+                                      Text('Marquer tout comme lu',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Color(0xFF2563EB),
+                                            fontWeight: FontWeight.w600,
+                                          )),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    overlay.insert(_notifOverlay!);
+  }
+
+  @override
+  void dispose() {
+    _notifOverlay?.remove();
+    super.dispose();
   }
 
   String _formatDate(String? isoString) {
@@ -1038,41 +1272,44 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   },
                 ),
               ),
-              IconButton(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Aucune nouvelle notification')),
-                  );
-                },
-                icon: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    const Icon(Icons.notifications_none_rounded, color: Color(0xFF1E293B), size: 28),
-                    Positioned(
-                      right: 0,
-                      top: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(3),
-                        decoration: const BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
-                        ),
-                        constraints: const BoxConstraints(
-                          minWidth: 14,
-                          minHeight: 14,
-                        ),
-                        child: const Text(
-                          '3',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 8,
-                            fontWeight: FontWeight.bold,
+              Consumer<NotificationProvider>(
+                builder: (ctx, notifProv, _) => CompositedTransformTarget(
+                  link: _notifLayerLink,
+                  child: IconButton(
+                    onPressed: () => _toggleNotifOverlay(context),
+                    icon: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        const Icon(Icons.notifications_none_rounded, color: Color(0xFF1E293B), size: 28),
+                        if (notifProv.unreadCount > 0)
+                          Positioned(
+                            right: -1,
+                            top: -1,
+                            child: AnimatedScale(
+                              scale: notifProv.unreadCount > 0 ? 1.0 : 0.0,
+                              duration: const Duration(milliseconds: 200),
+                              child: Container(
+                                padding: const EdgeInsets.all(3),
+                                decoration: const BoxDecoration(
+                                  color: Colors.red,
+                                  shape: BoxShape.circle,
+                                ),
+                                constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
+                                child: Text(
+                                  '${notifProv.unreadCount}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
                           ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ],
@@ -1251,26 +1488,46 @@ class _HoverCardState extends State<HoverCard> {
 
   @override
   Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
     return MouseRegion(
+      cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        transform: _isHovered ? (Matrix4.identity()..translate(0, -3, 0)) : Matrix4.identity(),
-        child: Card(
-          elevation: _isHovered ? 4 : 0,
-          margin: EdgeInsets.zero,
-          shadowColor: Colors.black.withOpacity(0.08),
-          shape: RoundedRectangleBorder(
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          transform: _isHovered
+              ? Matrix4.translationValues(0, -4, 0)
+              : Matrix4.identity(),
+          decoration: BoxDecoration(
+            color: Colors.white,
             borderRadius: BorderRadius.circular(16),
-            side: BorderSide(
-              color: _isHovered ? Theme.of(context).colorScheme.primary.withOpacity(0.3) : const Color(0xFFF1F5F9)!,
+            border: Border.all(
+              color: _isHovered
+                  ? primary.withValues(alpha: 0.22)
+                  : Colors.grey.shade200,
               width: 1.5,
             ),
+            boxShadow: _isHovered
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.06),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                    ),
+                  ]
+                : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.02),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
           ),
-          child: InkWell(
+          child: ClipRRect(
             borderRadius: BorderRadius.circular(16),
-            onTap: widget.onTap,
             child: widget.child,
           ),
         ),

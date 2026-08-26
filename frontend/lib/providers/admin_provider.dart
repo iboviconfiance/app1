@@ -17,6 +17,7 @@ class AdminProvider extends ChangeNotifier {
   List<dynamic> _exams = [];
   List<dynamic> _users = [];
   String? _error;
+  String _searchQuery = '';
 
   AdminProvider(this._api);
 
@@ -31,8 +32,16 @@ class AdminProvider extends ChangeNotifier {
   List<dynamic> get exams => _exams;
   List<dynamic> get users => _users;
   String? get error => _error;
+  String get searchQuery => _searchQuery;
 
   void _clearError() => _error = null;
+
+  void setSearchQuery(String query) {
+    if (_searchQuery != query) {
+      _searchQuery = query;
+      notifyListeners();
+    }
+  }
 
   // ──────────────────────────────────────────────────────────────────────────
   // UPLOAD DE FICHIERS

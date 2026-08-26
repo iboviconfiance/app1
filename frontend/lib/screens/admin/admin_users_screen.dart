@@ -177,9 +177,14 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                               children: [
                                 Row(
                                   children: [
-                                    Text(
-                                      '${u['prenom'] ?? ''} ${u['nom'] ?? ''}',
-                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1E293B)),
+                                    // Flexible évite que le badge de rôle soit poussé hors de l'écran
+                                    Flexible(
+                                      child: Text(
+                                        '${u['prenom'] ?? ''} ${u['nom'] ?? ''}',
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1E293B)),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ),
                                     const SizedBox(width: 8),
                                     Container(
@@ -195,6 +200,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                                     ),
                                   ],
                                 ),
+
                                 const SizedBox(height: 4),
                                 Text(
                                   'Tél: ${u['telephone'] ?? ''} • Inscrit le ${_formatDate(u['created_at'] ?? u['createdAt'])}',

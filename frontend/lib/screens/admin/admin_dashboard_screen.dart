@@ -38,82 +38,96 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     required Color color,
     required int delay,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: kSurface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: kBorder, width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(0.06),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              // Icon badge
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: color, size: 22),
-              ),
-              // Trend badge
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFDCFCE7),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.trending_up_rounded, size: 12, color: Color(0xFF16A34A)),
-                    const SizedBox(width: 3),
-                    Text(
-                      sub,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF16A34A),
-                      ),
-                    ),
-                  ],
-                ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Padding réduit sur petits écrans pour éviter le chevauchement
+        final cardPadding = constraints.maxWidth < 140 ? 10.0 : 14.0;
+        return Container(
+          padding: EdgeInsets.all(cardPadding),
+          decoration: BoxDecoration(
+            color: kSurface,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: kBorder, width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: color.withOpacity(0.06),
+                blurRadius: 20,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 32,
-              fontWeight: FontWeight.w800,
-              color: kTextPrimary,
-              letterSpacing: -1.5,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Icon badge
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(icon, color: color, size: 20),
+                  ),
+                  // Trend badge — protégé contre l'overflow
+                  Flexible(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFDCFCE7),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.trending_up_rounded, size: 11, color: Color(0xFF16A34A)),
+                          const SizedBox(width: 2),
+                          Flexible(
+                            child: Text(
+                              sub,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF16A34A),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  color: kTextPrimary,
+                  letterSpacing: -1.2,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: kTextSecondary,
+                  fontWeight: FontWeight.w500,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 13,
-              color: kTextSecondary,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     ).animate().fadeIn(delay: Duration(milliseconds: delay), duration: 400.ms).slideY(begin: 0.15, end: 0);
   }
 
@@ -131,12 +145,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return Material(
       color: kSurface,
       borderRadius: BorderRadius.circular(16),
+      // Ombre légère pour harmoniser avec les stat cards
+      shadowColor: color.withOpacity(0.10),
+      elevation: 2,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         hoverColor: color.withOpacity(0.03),
         child: Container(
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: kBorder, width: 1),
@@ -144,60 +161,72 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           child: Row(
             children: [
               Container(
-                width: 48,
-                height: 48,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [color.withOpacity(0.15), color.withOpacity(0.05)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(icon, color: color, size: 24),
+                child: Icon(icon, color: color, size: 22),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
+              // Texte occupe l'espace disponible
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
                       title,
                       style: const TextStyle(
                         fontWeight: FontWeight.w600,
-                        fontSize: 14,
+                        fontSize: 13,
                         color: kTextPrimary,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 2),
                     Text(
                       subtitle,
                       style: const TextStyle(
                         color: kTextSecondary,
-                        fontSize: 12,
+                        fontSize: 11,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  badge,
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
+              const SizedBox(width: 8),
+              // Badge protégé contre l'overflow
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 72),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.10),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    badge,
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
-              Icon(Icons.arrow_forward_ios_rounded, color: kTextMuted, size: 14),
+              const SizedBox(width: 6),
+              Icon(Icons.arrow_forward_ios_rounded, color: kTextMuted, size: 12),
             ],
           ),
         ),
@@ -223,7 +252,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             child: SafeArea(
               bottom: false,
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 child: Row(
                   children: [
                     IconButton(
@@ -235,42 +264,61 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         padding: const EdgeInsets.all(8),
                       ),
                     ),
-                    const SizedBox(width: 16),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Console d\'Administration',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: kTextPrimary,
-                          ),
-                        ),
-                        Text(
-                          'Gestion de la plateforme KLAS+',
-                          style: TextStyle(fontSize: 12, color: kTextSecondary),
-                        ),
-                      ],
-                    ),
-                    const Spacer(),
-                    // Admin badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF2563EB), Color(0xFF7C3AED)],
-                        ),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Row(
+                    const SizedBox(width: 12),
+                    // Titre dans Expanded pour éviter l'overflow du badge
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.shield_rounded, color: Colors.white, size: 14),
-                          SizedBox(width: 6),
-                          Text('Admin', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                          Text(
+                            width < 360 ? 'Admin' : 'Console d\'Administration',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: kTextPrimary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            'Gestion de la plateforme KLAS+',
+                            style: const TextStyle(fontSize: 11, color: kTextSecondary),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ],
                       ),
                     ),
+                    const SizedBox(width: 8),
+                    // Admin badge — masqué sur très petits écrans
+                    if (width >= 340)
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: width < 400 ? 8 : 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF2563EB), Color(0xFF7C3AED)],
+                          ),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.shield_rounded, color: Colors.white, size: 13),
+                            const SizedBox(width: 4),
+                            Text(
+                              width < 400 ? 'Admin' : 'Console Admin',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -293,61 +341,78 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       _buildSectionHeader('Aperçu global', 'Données en temps réel'),
                       const SizedBox(height: 16),
 
-                      if (loading && stats == null)
+                      // ── Stats Grid : conserve les données pendant le rechargement ──
+                      if (stats != null)
+                        Stack(
+                          alignment: Alignment.topRight,
+                          children: [
+                            GridView.count(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              crossAxisCount: isWide ? 5 : (width > 600 ? 3 : 2),
+                              crossAxisSpacing: 10,
+                              mainAxisSpacing: 10,
+                              childAspectRatio: isWide ? 1.0 : (width < 360 ? 0.9 : 1.0),
+                              children: [
+                                _buildStatCard(
+                                  label: 'Élèves inscrits',
+                                  value: '${stats!['total_users'] ?? 0}',
+                                  sub: 'Actifs',
+                                  icon: Icons.people_rounded,
+                                  color: const Color(0xFF2563EB),
+                                  delay: 0,
+                                ),
+                                _buildStatCard(
+                                  label: 'Abonnés Premium',
+                                  value: '${stats['active_subscriptions'] ?? 0}',
+                                  sub: 'Payants',
+                                  icon: Icons.workspace_premium_rounded,
+                                  color: const Color(0xFFF59E0B),
+                                  delay: 60,
+                                ),
+                                _buildStatCard(
+                                  label: 'Cours publiés',
+                                  value: '${stats['total_courses'] ?? 0}',
+                                  sub: 'En ligne',
+                                  icon: Icons.menu_book_rounded,
+                                  color: const Color(0xFF10B981),
+                                  delay: 120,
+                                ),
+                                _buildStatCard(
+                                  label: 'Exercices / QCM',
+                                  value: '${stats['total_exercises'] ?? 0}',
+                                  sub: 'Disponibles',
+                                  icon: Icons.quiz_rounded,
+                                  color: const Color(0xFF8B5CF6),
+                                  delay: 180,
+                                ),
+                                _buildStatCard(
+                                  label: 'Annales BAC',
+                                  value: '${stats['total_exams'] ?? 0}',
+                                  sub: 'Annales',
+                                  icon: Icons.history_edu_rounded,
+                                  color: const Color(0xFFEF4444),
+                                  delay: 240,
+                                ),
+                              ],
+                            ),
+                            // Spinner en overlay — pas de layout shift
+                            if (loading)
+                              const Positioned(
+                                top: 8,
+                                right: 8,
+                                child: SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                ),
+                              ),
+                          ],
+                        )
+                      else if (loading)
                         const Padding(
                           padding: EdgeInsets.symmetric(vertical: 40),
                           child: Center(child: CircularProgressIndicator()),
-                        )
-                      else
-                        GridView.count(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          crossAxisCount: isWide ? 5 : (width > 600 ? 3 : 2),
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                          childAspectRatio: isWide ? 1.1 : 1.2,
-                          children: [
-                            _buildStatCard(
-                              label: 'Élèves inscrits',
-                              value: '${stats?['total_users'] ?? 0}',
-                              sub: 'Actifs',
-                              icon: Icons.people_rounded,
-                              color: const Color(0xFF2563EB),
-                              delay: 0,
-                            ),
-                            _buildStatCard(
-                              label: 'Abonnés Premium',
-                              value: '${stats?['active_subscriptions'] ?? 0}',
-                              sub: 'Payants',
-                              icon: Icons.workspace_premium_rounded,
-                              color: const Color(0xFFF59E0B),
-                              delay: 60,
-                            ),
-                            _buildStatCard(
-                              label: 'Cours publiés',
-                              value: '${stats?['total_courses'] ?? 0}',
-                              sub: 'En ligne',
-                              icon: Icons.menu_book_rounded,
-                              color: const Color(0xFF10B981),
-                              delay: 120,
-                            ),
-                            _buildStatCard(
-                              label: 'Exercices / QCM',
-                              value: '${stats?['total_exercises'] ?? 0}',
-                              sub: 'Disponibles',
-                              icon: Icons.quiz_rounded,
-                              color: const Color(0xFF8B5CF6),
-                              delay: 180,
-                            ),
-                            _buildStatCard(
-                              label: 'Annales BAC',
-                              value: '${stats?['total_exams'] ?? 0}',
-                              sub: 'Annales',
-                              icon: Icons.history_edu_rounded,
-                              color: const Color(0xFFEF4444),
-                              delay: 240,
-                            ),
-                          ],
                         ),
 
                       const SizedBox(height: 36),
@@ -360,13 +425,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         crossAxisCount: isWide ? 2 : 1,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                        childAspectRatio: isWide ? 3.8 : 4.5,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                        // Ratio dynamique selon la largeur
+                        childAspectRatio: isWide
+                            ? 4.0
+                            : (width < 360 ? 3.5 : (width < 420 ? 4.0 : 4.5)),
                         children: [
                           _buildMenuTile(
                             title: 'Matières & Programmes',
-                            subtitle: 'Configurer les icônes, couleurs et filières.',
+                            subtitle: 'Icônes, couleurs et filières.',
                             icon: Icons.palette_rounded,
                             color: const Color(0xFF06B6D4),
                             badge: 'Matières',
@@ -375,7 +443,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           ),
                           _buildMenuTile(
                             title: 'Cours PDF & Vidéos',
-                            subtitle: 'Téléverser des chapitres, PDF et vidéos de cours.',
+                            subtitle: 'Chapitres, PDF et vidéos.',
                             icon: Icons.library_books_rounded,
                             color: const Color(0xFF10B981),
                             badge: 'Contenus',
@@ -384,7 +452,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           ),
                           _buildMenuTile(
                             title: 'Exercices & QCM',
-                            subtitle: 'Créer des quiz interactifs et définir les barèmes.',
+                            subtitle: 'Quiz interactifs et barèmes.',
                             icon: Icons.quiz_rounded,
                             color: const Color(0xFF8B5CF6),
                             badge: 'Quiz',
@@ -393,7 +461,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           ),
                           _buildMenuTile(
                             title: 'Annales BAC / BEPC',
-                            subtitle: 'Téléverser les sujets officiels et leurs corrigés.',
+                            subtitle: 'Sujets officiels et corrigés.',
                             icon: Icons.history_edu_rounded,
                             color: const Color(0xFFEF4444),
                             badge: 'Examens',
@@ -413,13 +481,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         crossAxisCount: isWide ? 2 : 1,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                        childAspectRatio: isWide ? 3.8 : 4.5,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                        childAspectRatio: isWide
+                            ? 4.0
+                            : (width < 360 ? 3.5 : (width < 420 ? 4.0 : 4.5)),
                         children: [
                           _buildMenuTile(
                             title: 'Gestion des Utilisateurs',
-                            subtitle: 'Consulter les comptes et promouvoir les enseignants.',
+                            subtitle: 'Comptes et rôles enseignants.',
                             icon: Icons.manage_accounts_rounded,
                             color: const Color(0xFF3B82F6),
                             badge: 'Rôles',
@@ -428,7 +498,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           ),
                           _buildMenuTile(
                             title: 'Analytics Professeur',
-                            subtitle: 'Voir les notions qui bloquent le plus les élèves.',
+                            subtitle: 'Notions qui bloquent les élèves.',
                             icon: Icons.bar_chart_rounded,
                             color: const Color(0xFFF97316),
                             badge: 'Insights',

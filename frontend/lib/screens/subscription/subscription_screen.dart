@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../providers/auth_provider.dart';
@@ -11,20 +12,16 @@ class SubscriptionScreen extends StatefulWidget {
 }
 
 class _SubscriptionScreenState extends State<SubscriptionScreen> {
-  List<dynamic> _plans = [];
-  String _method = 'airtel_money'; // airtel_money, mtn_mobile_money
+  String _method = 'airtel_money';
   final _phoneCtrl = TextEditingController();
-  bool _loading = true;
   bool _submitting = false;
 
-  // Selected billing config
   int _activePlanTab = 0; // 0: Individuel, 1: Familial
-  String _selectedDuration = '1 Mois'; // 1 Semaine, 1 Mois, 3 Mois, 1 An
+  String _selectedDuration = '1 Mois';
 
   @override
   void initState() {
     super.initState();
-    _load();
     final user = context.read<AuthProvider>().user;
     _phoneCtrl.text = user?['telephone'] ?? '';
   }
@@ -35,29 +32,19 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     super.dispose();
   }
 
-  Future<void> _load() async {
-    try {
-      final res = await context.read<AuthProvider>().api.get('/subscriptions/plans');
-      setState(() {
-        _plans = res['data'] as List;
-        _loading = false;
-      });
-    } catch (_) {
-      setState(() => _loading = false);
-    }
-  }
-
   Future<void> _subscribe(String planId) async {
     setState(() => _submitting = true);
+    // Capturer api et provider AVANT les await (évite BuildContext-across-async-gap)
+    final api = context.read<AuthProvider>().api;
+    final authProv = context.read<AuthProvider>();
     try {
-      final res = await context.read<AuthProvider>().api.post('/subscriptions/subscribe', {
+      final res = await api.post('/subscriptions/subscribe', {
         'plan': planId,
         'method': _method,
         'phoneNumber': _phoneCtrl.text.trim(),
       });
-      
-      // Update local user authentication/subscription details if provider has it
-      await context.read<AuthProvider>().refreshProfile();
+
+      await authProv.refreshProfile();
 
       if (mounted) {
         showDialog(
@@ -78,8 +65,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             actions: [
               FilledButton(
                 onPressed: () {
-                  Navigator.pop(context);
-                  Navigator.pop(context); // Go back
+                  Navigator.pop(context); // Ferme la modal
+                  context.go('/courses'); // Redirige proprement vers les cours
                 },
                 child: const Text('Accéder aux cours'),
               ),
@@ -137,14 +124,10 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final user = context.watch<AuthProvider>().user;
-    
-    // Check if user has an active premium subscription right now
-    // Wait, let's pull subscription active info from provider/user
+
     final activeSubscription = user?['subscription'] ?? user?['activeSubscription'];
     final hasPremium = activeSubscription != null && activeSubscription['plan'] != 'gratuit' && activeSubscription['status'] == 'active';
     final planName = activeSubscription != null ? activeSubscription['plan'] ?? 'gratuit' : 'gratuit';
-
-    if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
     final currentPrice = _getPrice();
     final planIdToSend = _activePlanTab == 0 ? 'individuel' : 'familial';
@@ -203,7 +186,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                                     : 'Abonnez-vous pour débloquer l\'accès complet',
                                   style: TextStyle(
                                     fontSize: 12.5,
-                                    color: hasPremium ? Colors.white.withOpacity(0.9) : const Color(0xFF64748B),
+                                    color: hasPremium ? Colors.white.withValues(alpha: 0.9) : const Color(0xFF64748B),
                                   ),
                                 ),
                               ],
@@ -254,7 +237,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 150),
                             decoration: BoxDecoration(
-                              color: isSelected ? theme.colorScheme.primary.withOpacity(0.04) : Colors.white,
+                              color: isSelected ? theme.colorScheme.primary.withValues(alpha: 0.04) : Colors.white,
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(
                                 color: isSelected ? theme.colorScheme.primary : const Color(0xFFE2E8F0),
@@ -272,15 +255,20 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                                 padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
                                 child: Row(
                                   children: [
-                                    Radio<String>(
-                                      value: duration,
-                                      groupValue: _selectedDuration,
-                                      activeColor: theme.colorScheme.primary,
-                                      onChanged: (v) {
-                                        if (v != null) {
-                                          setState(() => _selectedDuration = v);
-                                        }
-                                      },
+                                    // Indicateur circulaire custom (Radio déprécié en 3.32+)
+                                    Container(
+                                      width: 20,
+                                      height: 20,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: isSelected
+                                              ? theme.colorScheme.primary
+                                              : const Color(0xFFCBD5E1),
+                                          width: isSelected ? 5 : 2,
+                                        ),
+                                        color: Colors.white,
+                                      ),
                                     ),
                                     const SizedBox(width: 8),
                                     Expanded(
@@ -398,7 +386,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             boxShadow: isSelected
                 ? [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withValues(alpha: 0.05),
                       blurRadius: 4,
                       offset: const Offset(0, 2),
                     ),
@@ -431,7 +419,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
         decoration: BoxDecoration(
-          color: isSelected ? logoColor.withOpacity(0.04) : Colors.white,
+          color: isSelected ? logoColor.withValues(alpha: 0.04) : Colors.white,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: isSelected ? borderColor : const Color(0xFFE2E8F0),
@@ -440,7 +428,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: logoColor.withOpacity(0.12),
+                    color: logoColor.withValues(alpha: 0.12),
                     blurRadius: 8,
                     offset: const Offset(0, 4),
                   ),
@@ -460,7 +448,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               children: [
                 CircleAvatar(
                   radius: 20,
-                  backgroundColor: logoColor.withOpacity(0.1),
+                  backgroundColor: logoColor.withValues(alpha: 0.1),
                   child: Text(
                     label[0],
                     style: TextStyle(color: logoColor, fontWeight: FontWeight.bold, fontSize: 18),

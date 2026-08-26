@@ -34,31 +34,26 @@ class KlasPlusApp extends StatefulWidget {
 }
 
 class _KlasPlusAppState extends State<KlasPlusApp> {
-  late final GoRouter _router;
+  GoRouter? _router;
 
-  @override
-  void initState() {
-    super.initState();
-    final auth = context.read<AuthProvider>();
-    _router = GoRouter(
+  GoRouter _buildRouter(AuthProvider auth) {
+    return GoRouter(
       initialLocation: auth.isAuthenticated ? '/dashboard' : '/welcome',
       refreshListenable: auth,
       redirect: (context, state) {
+        // Attendre l'initialisation depuis SharedPreferences avant tout redirect
+        if (!auth.initialized) return null;
+
         final loggedIn = auth.isAuthenticated;
         final authRoutes = ['/welcome', '/login', '/register', '/forgot-password'];
-        
-        // Attendre que AuthProvider soit initialisé depuis SharedPreferences
-        if (!auth.initialized) return null;
 
         if (!loggedIn && !authRoutes.contains(state.matchedLocation)) return '/welcome';
         if (loggedIn && authRoutes.contains(state.matchedLocation)) return '/dashboard';
 
-        // Étape 2 : Protection du Routeur (Flutter GoRouter)
+        // Protection des routes admin
         if (state.matchedLocation.startsWith('/admin')) {
           final role = auth.user?['role'];
-          if (role != 'admin' && role != 'teacher') {
-            return '/dashboard'; // Rediriger immédiatement les intrus vers l'accueil
-          }
+          if (role != 'admin' && role != 'teacher') return '/dashboard';
         }
         return null;
       },
@@ -67,8 +62,7 @@ class _KlasPlusAppState extends State<KlasPlusApp> {
         GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
         GoRoute(path: '/register', builder: (_, __) => const RegisterScreen()),
         GoRoute(path: '/forgot-password', builder: (_, __) => const ForgotPasswordScreen()),
-        
-        // Routes d'administration (hors ShellRoute élève pour un design propre et complet)
+
         GoRoute(path: '/admin', builder: (_, __) => const AdminDashboardScreen()),
         GoRoute(path: '/admin/courses', builder: (_, __) => const AdminCoursesScreen()),
         GoRoute(path: '/admin/exercises', builder: (_, __) => const AdminExercisesScreen()),
@@ -99,26 +93,56 @@ class _KlasPlusAppState extends State<KlasPlusApp> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
-    
-    // Render a clean loading state while restoring session from SharedPreferences
+
+    // ── Splash branded : masque le flicker GoRouter pendant l'init ──────────
+    // On affiche un splash qui ressemble à l'app (fond de couleur primaire)
+    // plutôt qu'un écran blanc avec un spinner, ce qui élimine visuellement
+    // le "blank screen" perçu pendant la résolution de session.
     if (!auth.initialized) {
       return MaterialApp(
         title: 'KLAS+',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
-        home: const Scaffold(
+        home: Scaffold(
+          backgroundColor: AppTheme.lightTheme.colorScheme.primary,
           body: Center(
-            child: CircularProgressIndicator(),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Logo texte
+                const Text(
+                  'KLAS+',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 42,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -1.5,
+                  ),
+                ),
+                const SizedBox(height: 32),
+                SizedBox(
+                  width: 28,
+                  height: 28,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    color: Colors.white.withValues(alpha: 0.7),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );
     }
 
+    // Crée le router une seule fois une fois auth initialisé
+    _router ??= _buildRouter(auth);
+
     return MaterialApp.router(
       title: 'KLAS+',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      routerConfig: _router,
+      routerConfig: _router!,
     );
   }
 }
